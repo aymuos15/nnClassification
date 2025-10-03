@@ -1,0 +1,246 @@
+# Data Configuration
+
+## Overview
+
+The `data` section controls dataset loading and preprocessing parameters. These settings affect data loading speed, memory usage, and training throughput.
+
+## Configuration Parameters
+
+```yaml
+data:
+  data_dir: <string>
+  num_workers: <int>
+```
+
+---
+
+## `data_dir`
+
+- **Type:** String (path)
+- **Default:** `'data/hymenoptera_data'`
+- **Description:** Path to dataset directory
+- **Purpose:** Specify location of training, validation, and test datasets
+
+### Usage
+
+```yaml
+data:
+  data_dir: 'data/hymenoptera_data'
+```
+
+### CLI Override
+
+```bash
+python train.py --data_dir data/my_dataset
+python train.py --data_dir /mnt/shared/datasets/imagenet
+```
+
+### Common Paths
+
+- **Local data:** `data/my_dataset`
+- **Network storage:** `/mnt/shared/datasets/my_dataset`
+- **Absolute paths:** `/home/user/datasets/my_dataset`
+
+### Supported Image Formats
+
+The framework supports any format that PIL/Pillow can read:
+- JPG/JPEG
+- PNG
+- BMP
+- TIFF
+- GIF
+- And more
+
+---
+
+### ⚠️ CRITICAL: MANDATORY DIRECTORY STRUCTURE
+
+**This structure is NOT optional. The code WILL FAIL without it.**
+
+Your dataset **MUST** follow this exact hierarchy:
+
+```
+data_dir/
+├── train/              ← REQUIRED: Training split
+│   ├── class1/        ← REQUIRED: One folder per class
+│   │   ├── img1.jpg
+│   │   ├── img2.jpg
+│   │   └── ...
+│   ├── class2/        ← REQUIRED: Another class folder
+│   │   ├── img1.jpg
+│   │   └── ...
+│   └── classN/        ← REQUIRED: N class folders (N = num_classes)
+│
+├── val/                ← REQUIRED: Validation split
+│   ├── class1/        ← REQUIRED: Same class names as train/
+│   ├── class2/
+│   └── classN/
+│
+└── test/               ← REQUIRED: Test split
+    ├── class1/        ← REQUIRED: Same class names as train/
+    ├── class2/
+    └── classN/
+```
+
+### Requirements (ALL MANDATORY)
+
+1. ✅ **Three splits:** Must have `train/`, `val/`, and `test/` directories
+2. ✅ **Same classes:** All three splits must have identical class folder names
+3. ✅ **Class folders:** Each class must be in its own subdirectory
+4. ✅ **Images in class folders:** Images go directly inside class folders (no subdirectories)
+5. ✅ **Matching num_classes:** Number of class folders must equal `model.num_classes` in config
+
+### Why This Structure?
+
+The code uses PyTorch's `ImageFolder` class, which requires this structure. This is not a limitation of this codebase—it's how PyTorch works.
+
+**For complete details on data organization, see:** [Data Preparation Guide](../getting-started/data-preparation.md)
+
+---
+
+## `num_workers`
+
+- **Type:** Integer (≥ 0)
+- **Default:** `4`
+- **Description:** Number of subprocesses for data loading
+- **Purpose:** Parallelize data loading to prevent GPU starvation
+
+### Usage
+
+```yaml
+data:
+  num_workers: 4
+```
+
+### CLI Override
+
+```bash
+python train.py --num_workers 8
+```
+
+### Performance Guidance
+
+| Setting | Use Case | Notes |
+|---------|----------|-------|
+| `0` | Debugging, small datasets | Single-threaded, easier to debug |
+| `2-4` | General use, consumer hardware | Good balance |
+| `4-8` | High-performance training | For systems with many CPU cores |
+| `8+` | Large-scale training | May see diminishing returns |
+
+### Choosing the Right Value
+
+**Factors to Consider:**
+- CPU core count (don't exceed available cores)
+- RAM availability (each worker loads data in memory)
+- Disk I/O (too many workers can bottleneck disk)
+- Batch size (larger batches benefit more from parallel loading)
+
+**Finding Optimal Value:**
+
+1. Start with `4` (default)
+2. Monitor GPU utilization: `watch -n 1 nvidia-smi`
+3. If GPU utilization < 90%, increase `num_workers`
+4. If GPU utilization near 100%, value is good
+5. If system becomes unresponsive, decrease `num_workers`
+
+### Performance Impact
+
+```
+num_workers=0:  [####------] 40% GPU utilization (GPU waiting for data)
+num_workers=2:  [#######---] 70% GPU utilization
+num_workers=4:  [##########] 98% GPU utilization (optimal)
+num_workers=8:  [##########] 98% GPU utilization (no improvement, wastes CPU)
+```
+
+### Troubleshooting
+
+**Problem: GPU utilization low (<70%)**
+- Solution: Increase `num_workers`
+- GPU is starving for data
+
+**Problem: System unresponsive, high RAM usage**
+- Solution: Decrease `num_workers`
+- Too many workers loading data in parallel
+
+**Problem: Training slow despite high GPU utilization**
+- Solution: Check disk I/O with `iostat -x 1`
+- May need faster storage or fewer workers
+
+**Problem: "Too many open files" error**
+- Solution: Increase system file descriptor limit
+  ```bash
+  ulimit -n 4096
+  ```
+
+### Special Cases
+
+**CPU-only training:**
+- Use `2-4` workers (lower than GPU training)
+- CPU is handling both training and data loading
+
+**Small datasets (< 1000 images):**
+- Use `0-2` workers
+- Overhead of multiprocessing not worth it
+
+**Large images (> 2MB each):**
+- Use `2-4` workers (lower than normal)
+- Each worker consumes more memory
+
+**Network/cloud storage:**
+- Use `2-4` workers (lower than local disk)
+- Network I/O may be bottleneck
+
+## Complete Examples
+
+### Example 1: Local Dataset, Consumer Hardware
+
+```yaml
+data:
+  data_dir: 'data/my_dataset'
+  num_workers: 4  # Good balance for 8-core CPU
+```
+
+### Example 2: Network Storage
+
+```yaml
+data:
+  data_dir: '/mnt/nfs/shared_datasets/imagenet'
+  num_workers: 2  # Lower due to network I/O
+```
+
+### Example 3: Debugging
+
+```yaml
+data:
+  data_dir: 'data/test_dataset'
+  num_workers: 0  # Single-threaded for easier debugging
+```
+
+### Example 4: High-Performance Server
+
+```yaml
+data:
+  data_dir: '/data/large_dataset'
+  num_workers: 8  # 32-core server with fast SSD
+```
+
+## Best Practices
+
+1. **Start with defaults** (`num_workers: 4`)
+2. **Monitor GPU utilization** during training
+3. **Adjust based on observation**, not guessing
+4. **Use 0 workers when debugging** (easier to trace issues)
+5. **Consider your hardware** (CPU cores, RAM, disk speed)
+6. **Test different values** (easy to experiment with CLI override)
+
+## Related Configuration
+
+- [Data Preparation Guide](../getting-started/data-preparation.md) - Complete guide to organizing datasets
+- [Training Configuration](training.md) - Related training parameters
+- [CLI Overrides](cli-overrides.md) - How to override via command line
+- [Performance Tuning](../reference/performance-tuning.md) - Optimize training speed
+
+## Further Reading
+
+- [PyTorch DataLoader Documentation](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader)
+- [ImageFolder Documentation](https://pytorch.org/vision/stable/generated/torchvision.datasets.ImageFolder.html)

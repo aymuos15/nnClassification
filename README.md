@@ -81,8 +81,22 @@ runs/{run_name}/
 
 ## Documentation
 
-- **`CLAUDE.md`** - Complete codebase guide (architecture, components, workflows)
-- **`CONFIG.md`** - Detailed configuration reference (all parameters explained)
+📚 **[Complete Documentation](docs/README.md)** - Comprehensive guides organized by topic
+
+**Quick Links:**
+- [Quick Start Guide](docs/getting-started/quick-start.md) - Train in 5 minutes
+- [Data Preparation](docs/getting-started/data-preparation.md) - Organize your dataset
+- [Configuration Reference](docs/configuration/overview.md) - All settings explained
+- [Training Guide](docs/user-guides/training.md) - Complete workflows
+- [Troubleshooting](docs/reference/troubleshooting.md) - Common issues
+
+**Documentation Sections:**
+- **Getting Started** - Installation, data prep, quick start
+- **Configuration** - Complete parameter reference
+- **User Guides** - Training, inference, monitoring, tuning
+- **Architecture** - System design and components
+- **Development** - Extend and customize
+- **Reference** - Best practices, troubleshooting, FAQ
 
 ## Requirements
 
