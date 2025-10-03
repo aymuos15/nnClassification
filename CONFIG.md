@@ -752,13 +752,123 @@ Epochs 21-24: LR = 0.000001(×0.1 at epoch 21)
 
 ### 6. Model Configuration
 
-The `model` section configures model architecture parameters.
+The `model` section configures model architecture and parameters.
 
 ```yaml
 model:
-  num_classes: <int>
-  model_path: <string>
+  type: <string>                    # 'base' or 'custom'
+  architecture: <string>            # For base models (torchvision)
+  custom_architecture: <string>     # For custom models
+  num_classes: <int>                # Number of output classes
+  weights: <string or null>         # Pretrained weights ('DEFAULT' or null)
+  input_size: <int>                 # Input image size (custom models)
+  dropout: <float>                  # Dropout probability (custom models)
+  model_path: <string>              # Legacy parameter (deprecated)
 ```
+
+#### `model.type`
+- **Type:** String
+- **Default:** `'base'`
+- **Description:** Model type - 'base' for torchvision models, 'custom' for custom architectures
+- **Purpose:** Select between pretrained torchvision models and custom implementations
+- **Usage:**
+  ```yaml
+  model:
+    type: 'base'    # Use torchvision models
+    # OR
+    type: 'custom'  # Use custom architectures
+  ```
+
+**When to Use:**
+- **'base'**: Use any torchvision model (ResNet, VGG, EfficientNet, ViT, etc.)
+- **'custom'**: Use custom architectures (SimpleCNN, TinyNet, or your own)
+
+#### `model.architecture`
+- **Type:** String
+- **Default:** `'resnet18'`
+- **Description:** Name of torchvision model architecture (used when `type: 'base'`)
+- **Purpose:** Specify which pretrained architecture to load
+- **Usage:**
+  ```yaml
+  model:
+    type: 'base'
+    architecture: 'resnet18'  # Any torchvision model
+  ```
+
+**Supported Architectures:**
+
+All torchvision models are automatically supported with proper final layer adaptation:
+
+**ResNet Family:**
+- `resnet18`, `resnet34`, `resnet50`, `resnet101`, `resnet152`
+- `resnext50_32x4d`, `resnext101_32x8d`, `resnext101_64x4d`
+- `wide_resnet50_2`, `wide_resnet101_2`
+
+**VGG:**
+- `vgg11`, `vgg13`, `vgg16`, `vgg19`
+- `vgg11_bn`, `vgg13_bn`, `vgg16_bn`, `vgg19_bn` (with batch norm)
+
+**DenseNet:**
+- `densenet121`, `densenet161`, `densenet169`, `densenet201`
+
+**EfficientNet:**
+- `efficientnet_b0` through `efficientnet_b7`
+- `efficientnet_v2_s`, `efficientnet_v2_m`, `efficientnet_v2_l`
+
+**MobileNet:**
+- `mobilenet_v2`, `mobilenet_v3_small`, `mobilenet_v3_large`
+
+**Vision Transformers:**
+- `vit_b_16`, `vit_b_32`, `vit_l_16`, `vit_l_32`, `vit_h_14`
+
+**Swin Transformers:**
+- `swin_t`, `swin_s`, `swin_b`
+- `swin_v2_t`, `swin_v2_s`, `swin_v2_b`
+
+**ConvNeXt:**
+- `convnext_tiny`, `convnext_small`, `convnext_base`, `convnext_large`
+
+**Other:**
+- `alexnet`, `squeezenet1_0`, `squeezenet1_1`
+- `googlenet`, `inception_v3`
+- `regnet_x_*`, `regnet_y_*` (various sizes)
+- `mnasnet0_5`, `mnasnet0_75`, `mnasnet1_0`, `mnasnet1_3`
+- `shufflenet_v2_x0_5`, `shufflenet_v2_x1_0`, `shufflenet_v2_x1_5`, `shufflenet_v2_x2_0`
+- `maxvit_t`
+
+**Automatic Final Layer Replacement:**
+The framework automatically detects and replaces the final classification layer for any architecture, adapting it to your `num_classes`.
+
+#### `model.custom_architecture`
+- **Type:** String or null
+- **Default:** `null`
+- **Description:** Name of custom model architecture (used when `type: 'custom'`)
+- **Purpose:** Specify which custom model to use
+- **Usage:**
+  ```yaml
+  model:
+    type: 'custom'
+    custom_architecture: 'simple_cnn'  # or 'tiny_net'
+  ```
+
+**Available Custom Models:**
+
+**SimpleCNN:**
+- 3-layer CNN with fully connected layers
+- Good for small to medium datasets
+- Configurable dropout
+- Input: 224x224 (configurable)
+
+**TinyNet:**
+- Minimal 2-layer CNN
+- Fast prototyping and testing
+- Limited capacity
+- Input: 224x224 (configurable)
+
+**Creating Your Own:**
+1. Define your model class in `ml_src/network/custom.py`
+2. Add it to the `MODEL_REGISTRY` dictionary
+3. Use via config: `custom_architecture: 'your_model_name'`
 
 #### `model.num_classes`
 - **Type:** Integer (> 0)
@@ -777,30 +887,134 @@ model:
 - For ImageNet: `num_classes: 1000`
 - For CIFAR-10: `num_classes: 10`
 
-**Model Architecture:**
-```python
-# In ml_src/model.py
-model = models.resnet18(weights=None)
-num_ftrs = model.fc.in_features  # 512 for ResNet18
-model.fc = nn.Linear(num_ftrs, num_classes)  # Replace final layer
-```
-
 **Changing `num_classes`:**
 1. Update config: `num_classes: 10`
 2. Ensure dataset has 10 class folders
 3. Existing checkpoints won't work (different layer size)
 4. Train from scratch
 
+#### `model.weights`
+- **Type:** String or null
+- **Default:** `null`
+- **Description:** Pretrained weights for base models
+- **Purpose:** Use transfer learning from ImageNet-pretrained models
+- **Usage:**
+  ```yaml
+  model:
+    type: 'base'
+    architecture: 'resnet18'
+    weights: 'DEFAULT'  # Use ImageNet weights
+    # OR
+    weights: null       # Random initialization
+  ```
+
+**Options:**
+- `'DEFAULT'`: Load ImageNet-pretrained weights (recommended for transfer learning)
+- `null`: Random initialization (train from scratch)
+
+**When to Use Pretrained Weights:**
+- ✅ Small datasets (< 10k images)
+- ✅ Similar to ImageNet domain (natural images, objects)
+- ✅ Want faster convergence
+- ✅ Limited training time/compute
+
+**When to Train from Scratch:**
+- ❌ Very large datasets (> 100k images)
+- ❌ Very different domain (medical, satellite, etc.)
+- ❌ Plenty of training time/compute
+- ❌ Want full control over learning
+
+**Note:** Only applies to `type: 'base'`. Custom models always use random initialization.
+
+#### `model.input_size`
+- **Type:** Integer
+- **Default:** `224`
+- **Description:** Input image size for custom models
+- **Purpose:** Configure input dimensions for custom architectures
+- **Usage:**
+  ```yaml
+  model:
+    type: 'custom'
+    custom_architecture: 'simple_cnn'
+    input_size: 224  # Must match transforms.*.resize
+  ```
+
+**Important:**
+- Must match `transforms.*.resize` configuration
+- Only used for custom models
+- Base models have fixed input sizes (usually 224x224)
+
+#### `model.dropout`
+- **Type:** Float [0.0, 1.0]
+- **Default:** `0.5`
+- **Description:** Dropout probability for custom models
+- **Purpose:** Regularization to prevent overfitting
+- **Usage:**
+  ```yaml
+  model:
+    type: 'custom'
+    custom_architecture: 'simple_cnn'
+    dropout: 0.5  # 50% dropout
+  ```
+
+**Typical Values:**
+- `0.3`: Light regularization
+- `0.5`: Standard (default)
+- `0.7`: Strong regularization
+
+**Note:** Only applies to custom models that support dropout (SimpleCNN). Not used for base models.
+
 #### `model.model_path`
 - **Type:** String (path)
 - **Default:** `'best_model.pth'`
-- **Description:** Legacy parameter (not actively used)
+- **Description:** Legacy parameter (deprecated)
 - **Purpose:** Originally for model save path, now handled by checkpointing system
 - **Current Behavior:**
   - Models saved to `runs/{run_name}/weights/best.pt` and `last.pt`
   - This parameter can be ignored
 
-**Note:** This parameter is present in config but not used by current code. Model paths are determined by the run directory structure.
+**Note:** This parameter is present for backward compatibility but not used by current code. Model paths are determined by the run directory structure.
+
+---
+
+### Complete Model Configuration Examples
+
+**Example 1: ResNet18 from scratch**
+```yaml
+model:
+  type: 'base'
+  architecture: 'resnet18'
+  num_classes: 2
+  weights: null  # Train from scratch
+```
+
+**Example 2: Pretrained EfficientNet-B0**
+```yaml
+model:
+  type: 'base'
+  architecture: 'efficientnet_b0'
+  num_classes: 10
+  weights: 'DEFAULT'  # Transfer learning
+```
+
+**Example 3: Custom SimpleCNN**
+```yaml
+model:
+  type: 'custom'
+  custom_architecture: 'simple_cnn'
+  num_classes: 5
+  input_size: 224
+  dropout: 0.3
+```
+
+**Example 4: Vision Transformer**
+```yaml
+model:
+  type: 'base'
+  architecture: 'vit_b_16'
+  num_classes: 100
+  weights: 'DEFAULT'
+```
 
 ---
 

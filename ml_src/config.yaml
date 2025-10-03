@@ -27,7 +27,28 @@ scheduler:
 
 # Model configuration
 model:
+  # Model type: 'base' for torchvision models, 'custom' for custom architectures
+  type: 'base'
+
+  # For base models: specify any torchvision architecture
+  # Options: resnet18, resnet50, vgg16, efficientnet_b0, mobilenet_v2, etc.
+  architecture: 'resnet18'
+
+  # For custom models: specify custom architecture name
+  # Options: 'simple_cnn', 'tiny_net'
+  custom_architecture: null
+
+  # Number of output classes
   num_classes: 2
+
+  # Pretrained weights: 'DEFAULT' for ImageNet weights, null for random initialization
+  weights: null
+
+  # Additional parameters for custom models
+  input_size: 224  # Input image size (for custom models)
+  dropout: 0.5     # Dropout probability (for custom models that support it)
+
+  # Legacy option (deprecated but kept for compatibility)
   model_path: 'best_model.pth'
 
 # Data augmentation configuration

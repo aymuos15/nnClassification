@@ -32,7 +32,10 @@ The project is configured for the Hymenoptera dataset (ants vs bees classificati
 │   ├── loader.py              # DataLoader creation
 │   ├── loss.py                # Loss functions
 │   ├── metrics.py             # Evaluation metrics (confusion matrix, reports)
-│   ├── network.py             # Model architectures
+│   ├── network/               # Model architectures package
+│   │   ├── __init__.py        # Main API (get_model, save_model, load_model)
+│   │   ├── base.py            # Flexible torchvision model loader
+│   │   └── custom.py          # Custom model architectures (SimpleCNN, TinyNet)
 │   ├── optimizer.py           # Optimizers and learning rate schedulers
 │   ├── seeding.py             # Reproducibility utilities
 │   ├── test.py                # Testing/evaluation logic
@@ -194,21 +197,92 @@ python inference.py \
 
 **Design Decision:** Automatic metric generation provides immediate feedback on model performance across all classes.
 
-#### `network.py` - Model Architectures
-**Purpose:** Define and manage neural network architectures.
+#### `network/` - Model Architectures Package
+**Purpose:** Provide flexible model loading for both torchvision models and custom architectures.
 
-**Key Functions:**
+**Structure:**
+```
+network/
+├── __init__.py    # Main API
+├── base.py        # Torchvision model loader
+└── custom.py      # Custom architectures
+```
 
-- `get_model()`: Creates ResNet18 with custom final layer
-  - Uses pretrained=False (training from scratch)
-  - Replaces final FC layer with num_classes outputs
-  - Moves to specified device
+**`__init__.py` - Main API:**
 
-- `save_model()`: Saves model state dict to file
+- `get_model(config, device)`: Unified interface for loading models
+  - Routes to base or custom models based on config
+  - Maintains backward compatibility
+  - Returns configured model on specified device
 
-- `load_model()`: Loads model weights from file (lighter than full checkpoints)
+- `save_model(model, path)`: Saves model state dict
 
-**Design Decision:** ResNet18 provides good balance of performance and training speed. Separate module makes it easy to add VGG, EfficientNet, ViT, or custom architectures.
+- `load_model(model, path, device)`: Loads model weights
+
+**`base.py` - Flexible Torchvision Model Loader:**
+
+- `get_base_model(architecture, num_classes, weights, device)`: Load any torchvision model
+  - Supports all torchvision architectures (ResNet, VGG, EfficientNet, ViT, etc.)
+  - Automatically detects and replaces final layer for each architecture family
+  - Optional pretrained weights ('DEFAULT' for ImageNet, None for random init)
+
+- `_replace_final_layer(model, architecture, num_classes)`: Internal helper
+  - Pattern matches architecture name to determine final layer structure
+  - ResNet family: Replaces `.fc`
+  - VGG/AlexNet: Replaces `.classifier[6]`
+  - DenseNet: Replaces `.classifier`
+  - EfficientNet/MobileNet: Replaces `.classifier[1]` or `.classifier[-1]`
+  - Vision Transformers: Replaces `.heads.head` or `.head`
+  - And many more (see base.py for full list)
+  - Generic fallback for unknown architectures
+
+**`custom.py` - Custom Architectures:**
+
+- `SimpleCNN`: 3-layer CNN for small/medium datasets
+  - Conv layers: 3→32→64→128 channels
+  - FC layers with dropout
+  - Configurable input size and dropout rate
+
+- `TinyNet`: Minimal 2-layer CNN for prototyping
+  - Fast training, limited capacity
+  - Good for quick experiments
+
+- `get_custom_model(model_name, num_classes, input_size, device, **kwargs)`: Factory function
+  - Loads custom models from registry
+  - Extensible: Users add models to MODEL_REGISTRY
+
+**Usage Examples:**
+
+```python
+# Base model (torchvision)
+config = {
+    'model': {
+        'type': 'base',
+        'architecture': 'resnet18',
+        'num_classes': 10,
+        'weights': 'DEFAULT'
+    }
+}
+model = get_model(config, 'cuda:0')
+
+# Custom model
+config = {
+    'model': {
+        'type': 'custom',
+        'custom_architecture': 'simple_cnn',
+        'num_classes': 10,
+        'dropout': 0.3
+    }
+}
+model = get_model(config, 'cuda:0')
+```
+
+**Design Decisions:**
+- **Package structure**: Clean separation between base and custom models
+- **Automatic final layer detection**: No manual configuration needed per architecture
+- **Extensible**: Easy to add new custom models or torchvision architectures
+- **Boilerplate philosophy**: Base models work out-of-the-box, custom models as templates
+- **Backward compatible**: Same API as original network.py
 
 #### `loss.py` - Loss Functions
 **Purpose:** Define loss functions for training.
@@ -397,10 +471,35 @@ tensorboard --logdir runs/
 ## Development Workflow
 
 ### Adding a New Model Architecture
-1. Modify `ml_src/network.py::get_model()` to support new architecture
-2. Update config with model-specific parameters
-3. Example: Add `model.architecture` config option to select ResNet/VGG/EfficientNet
+
+**For Torchvision Models (Base Models):**
+1. Update config: Set `model.architecture` to any torchvision model name
+2. Example: `architecture: 'efficientnet_b0'`, `architecture: 'vit_b_16'`
+3. No code changes needed - automatic final layer detection handles it
+4. All torchvision models supported out-of-the-box
+
+**For Custom Models:**
+1. Define your model class in `ml_src/network/custom.py` (inherit from `nn.Module`)
+2. Add it to the `MODEL_REGISTRY` dictionary in `get_custom_model()`
+3. Update config: Set `model.type: 'custom'` and `model.custom_architecture: 'your_model_name'`
 4. No other changes needed (modular design)
+
+**Example - Adding a Custom ResNet-like Model:**
+```python
+# In ml_src/network/custom.py
+
+class MyResNet(nn.Module):
+    def __init__(self, num_classes, ...):
+        # Your implementation
+        pass
+
+# Add to MODEL_REGISTRY
+MODEL_REGISTRY = {
+    'simple_cnn': SimpleCNN,
+    'tiny_net': TinyNet,
+    'my_resnet': MyResNet,  # Add here
+}
+```
 
 ### Adding New Transforms
 1. Update `ml_src/config.yaml` transforms section
@@ -449,10 +548,22 @@ tensorboard --logdir runs/
 ### Why Split Network/Loss/Optimizer?
 The `ml_src/` package separates these concerns into dedicated modules:
 
-- **`network.py`**: Model architectures only
-  - Easy to add new models (EfficientNet, ViT, custom architectures)
-  - Clear location for all network-related code
-  - Can experiment with different backbones independently
+- **`network/`**: Model architectures package
+  - **`base.py`**: Flexible torchvision model loader
+    - Supports all torchvision architectures automatically
+    - Automatic final layer detection and replacement
+    - No manual configuration needed per architecture
+  - **`custom.py`**: Custom model implementations
+    - Example models (SimpleCNN, TinyNet)
+    - Template for users to create their own
+    - Registry-based extensibility
+  - **`__init__.py`**: Clean, unified API
+    - Routes between base and custom models
+    - Maintains backward compatibility
+  - **Package structure benefits**:
+    - Clear separation between base and custom models
+    - Easy to find and modify specific model types
+    - Can grow to include more specialized modules (pretrained/, timm_models/, etc.)
 
 - **`loss.py`**: Loss functions only
   - Easy to add new losses (Focal Loss, Label Smoothing, custom losses)
@@ -466,11 +577,12 @@ The `ml_src/` package separates these concerns into dedicated modules:
   - Separate from model and loss for maximum flexibility
 
 **Benefits:**
-- **Extensibility**: Adding ResNet50 doesn't touch optimizer code
-- **Experimentation**: Try Adam vs SGD without changing model
-- **Single Responsibility**: Each file has one clear purpose
-- **Scalability**: Won't end up with 1000-line model.py
-- **Professional**: Matches PyTorch Lightning, timm, other frameworks
+- **Extensibility**: Adding new models doesn't touch optimizer code
+- **Experimentation**: Try different models/optimizers/losses independently
+- **Single Responsibility**: Each file/module has one clear purpose
+- **Scalability**: Package structure prevents monolithic files
+- **Professional**: Matches PyTorch Lightning, timm, HuggingFace architectures
+- **Boilerplate-friendly**: Users can customize without breaking the base system
 
 ### Why YAML Configuration?
 - Human-readable and editable
