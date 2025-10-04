@@ -125,6 +125,13 @@ def _replace_final_layer(model, architecture, num_classes):
         model.classifier[1] = nn.Conv2d(512, num_classes, kernel_size=(1, 1), stride=(1, 1))
         logger.debug(f"Replaced .classifier[1] Conv2d layer: 512 -> {num_classes}")
 
+    # MaxVit: classifier is Sequential, last layer is [5]
+    # NOTE: Check BEFORE 'vit_' to avoid false match
+    elif 'maxvit' in arch_lower:
+        num_ftrs = model.classifier[5].in_features
+        model.classifier[5] = nn.Linear(num_ftrs, num_classes)
+        logger.debug(f"Replaced .classifier[5] layer: {num_ftrs} -> {num_classes}")
+
     # Vision Transformer (ViT): heads.head is the final layer
     elif 'vit_' in arch_lower:
         num_ftrs = model.heads.head.in_features
@@ -174,33 +181,17 @@ def _replace_final_layer(model, architecture, num_classes):
             model.AuxLogits.fc = nn.Linear(num_ftrs_aux, num_classes)
             logger.debug(f"Replaced .AuxLogits.fc layer: {num_ftrs_aux} -> {num_classes}")
 
-    # MaxVit: classifier is Sequential, last layer is [5]
-    elif 'maxvit' in arch_lower:
-        num_ftrs = model.classifier[5].in_features
-        model.classifier[5] = nn.Linear(num_ftrs, num_classes)
-        logger.debug(f"Replaced .classifier[5] layer: {num_ftrs} -> {num_classes}")
-
     else:
-        # Generic fallback: try common patterns
-        if hasattr(model, 'fc'):
-            num_ftrs = model.fc.in_features
-            model.fc = nn.Linear(num_ftrs, num_classes)
-            logger.warning(f"Unknown architecture, replaced .fc layer: {num_ftrs} -> {num_classes}")
-        elif hasattr(model, 'classifier'):
-            if isinstance(model.classifier, nn.Sequential):
-                # Try to find the last Linear layer
-                for i in range(len(model.classifier) - 1, -1, -1):
-                    if isinstance(model.classifier[i], nn.Linear):
-                        num_ftrs = model.classifier[i].in_features
-                        model.classifier[i] = nn.Linear(num_ftrs, num_classes)
-                        logger.warning(f"Unknown architecture, replaced .classifier[{i}] layer: {num_ftrs} -> {num_classes}")
-                        break
-            else:
-                num_ftrs = model.classifier.in_features
-                model.classifier = nn.Linear(num_ftrs, num_classes)
-                logger.warning(f"Unknown architecture, replaced .classifier layer: {num_ftrs} -> {num_classes}")
-        else:
-            raise ValueError(
-                f"Cannot automatically determine final layer for architecture '{architecture}'. "
-                f"Please add explicit support in network/base.py or use a custom model."
-            )
+        # No fallback - require explicit support for all architectures
+        supported_families = [
+            'resnet/resnext/wide_resnet', 'vgg', 'alexnet', 'densenet',
+            'efficientnet', 'mobilenet', 'squeezenet', 'maxvit', 'vit',
+            'swin', 'convnext', 'regnet', 'mnasnet', 'shufflenet',
+            'googlenet', 'inception'
+        ]
+        raise ValueError(
+            f"Architecture '{architecture}' is not explicitly supported. "
+            f"Supported architecture families: {', '.join(supported_families)}. "
+            f"To add support, update the _replace_final_layer() function in network/base.py "
+            f"with the correct final layer attribute for this architecture."
+        )
