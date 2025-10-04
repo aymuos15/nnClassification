@@ -2,7 +2,7 @@
 
 ## Overview
 
-The framework has two main entry points that provide complete workflows for training and inference. These scripts orchestrate all other components and provide the primary user interface.
+The framework has three main entry points that provide complete workflows for training, inference, and visualization. These scripts orchestrate all other components and provide the primary user interface.
 
 ---
 
@@ -534,12 +534,230 @@ tensorboard --logdir runs/batch_32_lr_0.01_epochs_50/tensorboard
 
 ---
 
+## `visualise.py` - Visualization Script
+
+### Purpose
+
+Provide easy TensorBoard visualization of datasets, model predictions, and training metrics.
+
+### Key Responsibilities
+
+1. **Launch TensorBoard server** for viewing training logs
+2. **Visualize dataset samples** in image grids
+3. **Visualize model predictions** with colored borders (green=correct, red=incorrect)
+4. **Clean TensorBoard logs** for fresh starts
+
+---
+
+### CLI Arguments
+
+```bash
+python visualise.py \
+  --mode launch|samples|predictions|clean \  # Visualization mode (required)
+  --run_dir runs/base \                      # Run directory
+  --split train|val|test \                   # Dataset split
+  --num_images 16 \                          # Number of images
+  --checkpoint best.pt \                     # Model checkpoint
+  --port 6006                                # TensorBoard port
+```
+
+**Required:** `--mode`
+**Optional:** All others (defaults provided)
+
+---
+
+### Modes
+
+#### 1. Launch Mode
+
+Start TensorBoard server:
+
+```bash
+python visualise.py --mode launch --run_dir runs/base --port 6006
+```
+
+**Purpose:** Launch TensorBoard to view existing logs
+
+**Output:** TensorBoard web interface at http://localhost:6006
+
+#### 2. Samples Mode
+
+Visualize dataset images:
+
+```bash
+python visualise.py --mode samples --run_dir runs/base --split train --num_images 16
+```
+
+**Purpose:** Log dataset images to TensorBoard for inspection
+
+**Output:**
+- Image grids in TensorBoard
+- Individual images organized by class
+
+**Use Cases:**
+- Verify data loading works correctly
+- Check image transformations
+- Inspect dataset quality
+
+#### 3. Predictions Mode
+
+Visualize model predictions:
+
+```bash
+python visualise.py --mode predictions --run_dir runs/base --split val --checkpoint best.pt
+```
+
+**Purpose:** Visualize model predictions with color-coded correctness
+
+**Output:**
+- Images with green borders (correct) or red borders (incorrect)
+- Grid view and individual images
+- Organized by Correct/Incorrect in TensorBoard
+
+**Use Cases:**
+- Identify misclassified examples
+- Analyze failure patterns
+- Compare different checkpoints
+
+#### 4. Clean Mode
+
+Remove TensorBoard logs:
+
+```bash
+python visualise.py --mode clean --run_dir runs/base  # Clean specific run
+python visualise.py --mode clean                      # Clean all runs
+```
+
+**Purpose:** Remove TensorBoard logs while preserving weights and other artifacts
+
+**What's Removed:** `runs/*/tensorboard/` directories
+
+**What's Preserved:** Weights, logs, configs, summaries
+
+---
+
+### Execution Flow
+
+#### Samples Mode Flow
+
+```python
+# Load configuration
+config = load_config(run_dir / 'config.yaml')
+
+# Create datasets
+datasets = get_datasets(config)
+dataloaders = get_dataloaders(datasets, config)
+
+# Get batch of images
+images, labels = next(iter(dataloaders[split]))
+
+# Denormalize for display
+mean, std = config['transforms'][split]['normalize']
+images_denorm = denormalize(images, mean, std)
+
+# Create grid
+grid = torchvision.utils.make_grid(images_denorm, nrow=4)
+
+# Log to TensorBoard
+writer = SummaryWriter(run_dir / 'tensorboard')
+writer.add_image(f'Dataset_Samples/{split}', grid, 0)
+```
+
+#### Predictions Mode Flow
+
+```python
+# Load model
+model = get_model(config, device)
+model = load_model(model, checkpoint_path, device)
+
+# Get predictions
+images, labels = next(iter(dataloader))
+outputs = model(images)
+preds = torch.max(outputs, 1)
+
+# Denormalize
+images_denorm = denormalize(images, mean, std)
+
+# Add colored borders
+for img, true_label, pred_label in zip(images_denorm, labels, preds):
+    is_correct = (true_label == pred_label)
+    color = (0, 255, 0) if is_correct else (255, 0, 0)  # Green or Red
+    bordered_img = add_colored_border(img, color, border_width=5)
+
+# Create grid and log
+grid = torchvision.utils.make_grid(bordered_images, nrow=4)
+writer.add_image(f'Predictions/{split}', grid, 0)
+```
+
+---
+
+### Features
+
+**Automatic Denormalization:**
+- Images are denormalized using config normalization parameters
+- Ensures natural appearance in TensorBoard
+
+**Color-Coded Predictions:**
+- 🟢 Green border = Correct prediction
+- 🔴 Red border = Incorrect prediction
+- 5-pixel border width
+
+**Grid Layout:**
+- 4 images per row by default
+- 2-pixel padding between images
+- Adapts to image dimensions
+
+**Organized Output:**
+- Individual images tagged by class
+- Predictions organized by Correct/Incorrect
+- Easy navigation in TensorBoard
+
+---
+
+### Use Cases
+
+#### Data Debugging
+
+```bash
+# Check if training data looks correct
+python visualise.py --mode samples --run_dir runs/base --split train --num_images 32
+
+# Verify transformations
+python visualise.py --mode samples --run_dir runs/base --split val --num_images 16
+```
+
+#### Model Analysis
+
+```bash
+# Identify misclassified examples
+python visualise.py --mode predictions --run_dir runs/base --split test
+
+# Compare best vs last checkpoint
+python visualise.py --mode predictions --run_dir runs/base --checkpoint best.pt
+python visualise.py --mode clean --run_dir runs/base
+python visualise.py --mode predictions --run_dir runs/base --checkpoint last.pt
+```
+
+#### Complete Visualization
+
+```bash
+# Full workflow
+python train.py --batch_size 32 --num_epochs 50
+python visualise.py --mode samples --run_dir runs/batch_32 --split train
+python visualise.py --mode predictions --run_dir runs/batch_32 --split val
+python visualise.py --mode launch --run_dir runs/batch_32
+```
+
+---
+
 ## Related Documentation
 
 - [ML Source Modules](ml-src-modules.md) - Components called by entry points
 - [Data Flow](data-flow.md) - How data moves through training/inference
 - [Configuration](../configuration/overview.md) - Config system details
 - [Training Guide](../user-guides/training.md) - Training workflows
+- [Monitoring Guide](../user-guides/monitoring.md) - TensorBoard and visualization
+- [Visualization Reference](../reference/visualization.md) - Complete visualise.py reference
 
 ---
 
@@ -559,7 +777,14 @@ tensorboard --logdir runs/batch_32_lr_0.01_epochs_50/tensorboard
 - ✅ Rich formatted output
 - ✅ Can override data directory
 
-**Both scripts:**
+**visualise.py:**
+- ✅ TensorBoard server management
+- ✅ Dataset sample visualization
+- ✅ Model prediction visualization with color coding
+- ✅ Clean mode for fresh starts
+- ✅ Automatic image denormalization
+
+**All scripts:**
 - Clean, focused interfaces
 - Proper error handling
 - Complete artifact preservation

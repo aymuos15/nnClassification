@@ -98,8 +98,22 @@ See: [Inference Guide](user-guides/inference.md)
 ### Monitor Training
 ```bash
 tensorboard --logdir runs/
+# Or use visualise.py
+python visualise.py --mode launch --run_dir runs/base
 ```
 See: [Monitoring Guide](user-guides/monitoring.md)
+
+### Visualize Dataset
+```bash
+python visualise.py --mode samples --run_dir runs/base --split train
+```
+See: [Monitoring Guide](user-guides/monitoring.md)
+
+### Visualize Predictions
+```bash
+python visualise.py --mode predictions --run_dir runs/base --split val
+```
+See: [Visualization Reference](reference/visualization.md)
 
 ### Change Model
 ```yaml

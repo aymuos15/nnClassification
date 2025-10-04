@@ -44,13 +44,25 @@ python train.py --resume runs/base/last.pt
 python inference.py --run_dir runs/base --checkpoint best.pt
 ```
 
-### View Training Metrics
-```bash
-# Start TensorBoard (view at http://localhost:6006)
-tensorboard --logdir runs/
+### Visualization
 
-# Or for a specific run
-tensorboard --logdir runs/base/tensorboard
+```bash
+# Launch TensorBoard
+python visualise.py --mode launch --run_dir runs/base
+
+# Visualize dataset samples
+python visualise.py --mode samples --run_dir runs/base --split train --num_images 16
+
+# Visualize model predictions (green=correct, red=incorrect)
+python visualise.py --mode predictions --run_dir runs/base --split val
+
+# Clean TensorBoard logs
+python visualise.py --mode clean
+```
+
+Or use TensorBoard directly:
+```bash
+tensorboard --logdir runs/
 ```
 
 ## Configuration
@@ -88,6 +100,7 @@ runs/{run_name}/
 - [Data Preparation](docs/getting-started/data-preparation.md) - Organize your dataset
 - [Configuration Reference](docs/configuration/overview.md) - All settings explained
 - [Training Guide](docs/user-guides/training.md) - Complete workflows
+- [Monitoring & Visualization](docs/user-guides/monitoring.md) - TensorBoard and visualise.py
 - [Troubleshooting](docs/reference/troubleshooting.md) - Common issues
 
 **Documentation Sections:**
