@@ -6,6 +6,9 @@ deterministic: false  # Set to true for full determinism (slower but completely 
 
 # Data configuration
 data:
+  # Dataset name (used in run directory naming)
+  dataset_name: 'hymenoptera'
+
   # Base directory: must contain raw/ (images) and splits/ (index files from splitting.py)
   data_dir: 'data/hymenoptera_data'
 

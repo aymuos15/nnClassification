@@ -141,8 +141,8 @@ def train_model(
     )
 
     for epoch in range(start_epoch, num_epochs):
-        logger.info(f"Epoch {epoch}/{num_epochs - 1}")
-        logger.info("-" * 50)
+        logger.opt(colors=True).info(f"<yellow>Epoch {epoch}/{num_epochs - 1}</yellow>")
+        logger.opt(colors=True).info("<dim>" + "-" * 50 + "</dim>")
 
         # Each epoch has a training and validation phase
         for phase in ["train", "val"]:
@@ -187,7 +187,10 @@ def train_model(
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_acc = running_corrects.double() / dataset_sizes[phase]
 
-            logger.info(f"{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
+            phase_color = "<blue>" if phase == "train" else "<magenta>"
+            logger.opt(colors=True).info(
+                f"{phase_color}{phase}</> Loss: <yellow>{epoch_loss:.4f}</> Acc: <yellow>{epoch_acc:.4f}</>"
+            )
 
             # Store metrics
             if phase == "train":

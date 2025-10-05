@@ -1,6 +1,6 @@
 # PyTorch Image Classifier
 
-Production-ready image classification framework with ResNet18. Supports training, resumption, and comprehensive evaluation.
+Production-ready image classification framework with flexible architecture support and index-based cross-validation. Supports training, resumption, and comprehensive evaluation.
 
 ## Quick Start
 
@@ -24,30 +24,44 @@ data/your_dataset/
     ├── fold_0_train.txt
     ├── fold_0_val.txt
     ├── fold_0_test.txt
+    ├── fold_1_train.txt
     └── ...
 ```
 
 ### Prepare Data & Train
 ```bash
-# Step 1: Generate cross-validation splits
-python splitting.py --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
+# Step 1: Generate cross-validation splits (one time per dataset)
+python splitting.py \
+  --raw_data data/my_dataset/raw \
+  --output data/my_dataset/splits \
+  --folds 5
 
-# Step 2: Train on fold 0 (default)
+# Step 2: Update config with dataset name and data directory
+# Edit ml_src/config.yaml:
+#   data:
+#     dataset_name: 'my_dataset'
+#     data_dir: 'data/my_dataset'
+#     fold: 0
+#   model:
+#     num_classes: 2  # Must match number of classes in raw/
+
+# Step 3: Train on fold 0
 python train.py --fold 0
 
 # Custom hyperparameters
 python train.py --fold 0 --batch_size 32 --lr 0.01 --num_epochs 25
 
-# Train other folds
+# Train other folds (cross-validation)
 python train.py --fold 1
+python train.py --fold 2
 
 # Resume training
-python train.py --resume runs/base_fold_0/last.pt
+python train.py --resume runs/my_dataset_base_fold_0/last.pt
 ```
 
 ### Inference
 ```bash
-python inference.py --run_dir runs/base --checkpoint best.pt
+python inference.py --run_dir runs/my_dataset_base_fold_0 --checkpoint best.pt
 ```
 
 ### Visualization
@@ -74,28 +88,36 @@ tensorboard --logdir runs/
 ## Configuration
 
 Edit `ml_src/config.yaml` or use CLI overrides:
-- `--data_dir`: Dataset path
+- `--dataset_name`: Dataset name (used in run directory naming)
+- `--data_dir`: Dataset path (must contain raw/ and splits/)
+- `--fold`: Which CV fold to use (0-indexed)
 - `--batch_size`: Batch size
 - `--num_epochs`: Training epochs
 - `--lr`: Learning rate
 - `--num_workers`: Data loading workers
 
-**Full config documentation:** See `CONFIG.md`
+**Full config documentation:** See `docs/configuration/overview.md`
 
 ## Output Structure
 ```
-runs/{run_name}/
-├── config.yaml                      # Saved configuration
-├── summary.txt                      # Training summary
+runs/{dataset_name}_{params}_fold_{N}/  # Auto-named based on dataset and parameters
+├── config.yaml                          # Saved configuration
+├── summary.txt                          # Training summary
 ├── weights/
-│   ├── best.pt                     # Best model
-│   └── last.pt                     # Latest checkpoint
+│   ├── best.pt                         # Best model (highest val accuracy)
+│   └── last.pt                         # Latest checkpoint (for resuming)
 ├── logs/
-│   ├── train.log
-│   └── classification_report_*.txt
-└── tensorboard/                     # TensorBoard logs
-    └── events.out.tfevents.*       # Training metrics, plots, confusion matrices
+│   ├── train.log                       # Detailed training log
+│   ├── classification_report_train.txt
+│   └── classification_report_val.txt
+└── tensorboard/                         # TensorBoard logs
+    └── events.out.tfevents.*           # Training metrics, plots, confusion matrices
 ```
+
+**Example run directories:**
+- `runs/hymenoptera_base_fold_0/` - Default training on fold 0
+- `runs/hymenoptera_batch_32_fold_1/` - Batch size 32, fold 1
+- `runs/custom_dataset_lr_0.01_epochs_50_fold_2/` - Custom params, fold 2
 
 ## Documentation
 

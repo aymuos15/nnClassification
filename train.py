@@ -30,6 +30,8 @@ def override_config(config, args):
     """Override configuration with command-line arguments."""
     overrides = []
 
+    if args.dataset_name:
+        config["data"]["dataset_name"] = args.dataset_name
     if args.data_dir:
         config["data"]["data_dir"] = args.data_dir
     if args.batch_size:
@@ -58,10 +60,12 @@ def override_config(config, args):
 
 def create_run_dir(overrides, config, config_path):
     """Create run directory based on config overrides and save config."""
+    dataset_name = config["data"].get("dataset_name", "dataset")
+
     if overrides:
-        run_name = "_".join(overrides)
+        run_name = f"{dataset_name}_{'_'.join(overrides)}"
     else:
-        run_name = "base"
+        run_name = f"{dataset_name}_base"
 
     run_dir = os.path.join("runs", run_name)
     os.makedirs(run_dir, exist_ok=True)
@@ -88,7 +92,7 @@ def setup_logging(run_dir):
     # Add colorized console handler
     logger.add(
         lambda msg: print(msg, end=""),
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
+        format="<cyan>{time:YYYY-MM-DD HH:mm:ss}</cyan> | <level>{level: <8}</level> | {message}",
         colorize=True,
         level="INFO",
     )
@@ -136,6 +140,11 @@ def main():
         type=int,
         help="Fold number for cross-validation (0-indexed, default: 0)",
     )
+    parser.add_argument(
+        "--dataset_name",
+        type=str,
+        help="Dataset name (used in run directory naming)",
+    )
 
     args = parser.parse_args()
 
@@ -167,6 +176,8 @@ def main():
 
     # Create datasets
     logger.info("Loading datasets...")
+    fold = config["data"].get("fold", 0)
+    logger.info(f"Using fold: {fold}")
     datasets = get_datasets(config)
     class_names = get_class_names(datasets)
     logger.info(f"Classes: {class_names}")

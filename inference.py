@@ -41,7 +41,7 @@ def setup_logging(run_dir):
     # Add colorized console handler
     logger.add(
         lambda msg: print(msg, end=""),
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
+        format="<cyan>{time:YYYY-MM-DD HH:mm:ss}</cyan> | <level>{level: <8}</level> | {message}",
         colorize=True,
         level="INFO",
     )
@@ -111,6 +111,8 @@ def main():
 
     # Load datasets
     logger.info("Loading datasets...")
+    fold = config["data"].get("fold", 0)
+    logger.info(f"Using fold: {fold}")
     datasets = get_datasets(config)
     class_names = get_class_names(datasets)
     logger.info(f"Classes: {class_names}")
