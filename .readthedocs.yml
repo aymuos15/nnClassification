@@ -7,10 +7,13 @@ build:
 
 mkdocs:
   configuration: mkdocs.yml
+  fail_on_warning: false
 
 python:
   install:
-    - method: pip
-      path: .
-      extra_requirements:
-        - dev
+    - requirements: docs/requirements.txt
+
+# Build documentation in additional formats (PDF and ePub)
+formats:
+  - pdf
+  - epub

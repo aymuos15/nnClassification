@@ -5,7 +5,7 @@
 site_name: "ML Classifier Documentation"
 site_description: "Production-ready image classification framework with flexible architecture support"
 site_author: "ML Classifier Team"
-site_url: "https://aymuos15.github.io/nnClassification"
+site_url: "https://nnclassification.readthedocs.io"
 
 # Repository Information
 repo_name: "aymuos15/nnClassification"
@@ -79,6 +79,7 @@ nav:
   - User Guides:
     - Overview: user-guides/README.md
     - Training: user-guides/training.md
+    - Advanced Training: user-guides/advanced-training.md
     - Inference: user-guides/inference.md
     - Resuming Training: user-guides/resuming-training.md
     - Monitoring: user-guides/monitoring.md
@@ -128,11 +129,6 @@ markdown_extensions:
       permalink_title: Anchor link to this section
       toc_depth: 3
 
-  # Code Highlighting
-  - codehilite:
-      linenums: true
-      guess_lang: false
-
   # PyMdown Extensions
   - pymdownx.arithmatex:
       generic: true
@@ -147,6 +143,7 @@ markdown_extensions:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
+      use_pygments: true
   - pymdownx.inlinehilite
   - pymdownx.keys
   - pymdownx.mark
