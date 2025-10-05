@@ -1,6 +1,7 @@
 # PyTorch Image Classifier
 
 [![Documentation Status](https://readthedocs.org/projects/nnclassification/badge/?version=latest)](https://nnclassification.readthedocs.io/en/latest/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 Production-ready image classification framework with flexible architecture support and index-based cross-validation. Supports training, resumption, and comprehensive evaluation.
 
