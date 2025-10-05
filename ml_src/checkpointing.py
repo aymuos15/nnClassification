@@ -20,7 +20,7 @@ def save_checkpoint(
     train_accs,
     val_accs,
     config,
-    checkpoint_path
+    checkpoint_path,
 ):
     """
     Save a comprehensive training checkpoint.
@@ -39,26 +39,26 @@ def save_checkpoint(
         checkpoint_path: Path to save the checkpoint
     """
     checkpoint = {
-        'epoch': epoch,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'scheduler_state_dict': scheduler.state_dict(),
-        'best_acc': best_acc,
-        'train_losses': train_losses,
-        'val_losses': val_losses,
-        'train_accs': train_accs,
-        'val_accs': val_accs,
-        'config': config,
-        'timestamp': datetime.now().isoformat(),
+        "epoch": epoch,
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "scheduler_state_dict": scheduler.state_dict(),
+        "best_acc": best_acc,
+        "train_losses": train_losses,
+        "val_losses": val_losses,
+        "train_accs": train_accs,
+        "val_accs": val_accs,
+        "config": config,
+        "timestamp": datetime.now().isoformat(),
         # Save random states for reproducibility
-        'torch_rng_state': torch.get_rng_state(),
-        'numpy_rng_state': np.random.get_state(),
-        'python_rng_state': random.getstate(),
+        "torch_rng_state": torch.get_rng_state(),
+        "numpy_rng_state": np.random.get_state(),
+        "python_rng_state": random.getstate(),
     }
 
     # Save CUDA RNG state if using CUDA
     if torch.cuda.is_available():
-        checkpoint['cuda_rng_state'] = torch.cuda.get_rng_state_all()
+        checkpoint["cuda_rng_state"] = torch.cuda.get_rng_state_all()
 
     torch.save(checkpoint, checkpoint_path)
     logger.debug(f"Saved checkpoint to {checkpoint_path}")
@@ -85,25 +85,25 @@ def load_checkpoint(checkpoint_path, model, optimizer, scheduler, device):
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
     # Load model, optimizer, and scheduler states
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
 
     # Restore random states for reproducibility
-    torch.set_rng_state(checkpoint['torch_rng_state'])
-    np.random.set_state(checkpoint['numpy_rng_state'])
-    random.setstate(checkpoint['python_rng_state'])
+    torch.set_rng_state(checkpoint["torch_rng_state"])
+    np.random.set_state(checkpoint["numpy_rng_state"])
+    random.setstate(checkpoint["python_rng_state"])
 
-    if torch.cuda.is_available() and 'cuda_rng_state' in checkpoint:
-        torch.cuda.set_rng_state_all(checkpoint['cuda_rng_state'])
+    if torch.cuda.is_available() and "cuda_rng_state" in checkpoint:
+        torch.cuda.set_rng_state_all(checkpoint["cuda_rng_state"])
 
-    epoch = checkpoint['epoch']
-    best_acc = checkpoint['best_acc']
-    train_losses = checkpoint.get('train_losses', [])
-    val_losses = checkpoint.get('val_losses', [])
-    train_accs = checkpoint.get('train_accs', [])
-    val_accs = checkpoint.get('val_accs', [])
-    config = checkpoint.get('config', None)
+    epoch = checkpoint["epoch"]
+    best_acc = checkpoint["best_acc"]
+    train_losses = checkpoint.get("train_losses", [])
+    val_losses = checkpoint.get("val_losses", [])
+    train_accs = checkpoint.get("train_accs", [])
+    val_accs = checkpoint.get("val_accs", [])
+    config = checkpoint.get("config", None)
 
     logger.success(f"Resumed from epoch {epoch}, best accuracy: {best_acc:.4f}")
 
@@ -145,7 +145,7 @@ def save_summary(
     final_train_loss=None,
     final_val_acc=None,
     final_val_loss=None,
-    error_message=None
+    error_message=None,
 ):
     """
     Save or update training summary to a text file.
@@ -177,11 +177,11 @@ def save_summary(
 
     # Status
     status_upper = status.upper()
-    if status == 'completed':
+    if status == "completed":
         status_display = f"✓ {status_upper}"
-    elif status == 'running':
+    elif status == "running":
         status_display = f"⟳ {status_upper}"
-    elif status == 'failed':
+    elif status == "failed":
         status_display = f"✗ {status_upper}"
     else:
         status_display = status_upper
@@ -194,13 +194,17 @@ def save_summary(
     lines.append("TIMING")
     lines.append("-" * 70)
     if start_time:
-        lines.append(f"Started:  {datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(
+            f"Started:  {datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')}"
+        )
     if end_time:
-        lines.append(f"Finished: {datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(
+            f"Finished: {datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S')}"
+        )
     if start_time and end_time:
         duration = end_time - start_time
         lines.append(f"Duration: {format_duration(duration)}")
-    elif start_time and status == 'running':
+    elif start_time and status == "running":
         elapsed = time.time() - start_time
         lines.append(f"Elapsed:  {format_duration(elapsed)}")
     lines.append("")
@@ -239,13 +243,13 @@ def save_summary(
         lines.append("-" * 70)
         lines.append("CONFIGURATION")
         lines.append("-" * 70)
-        if 'training' in config:
+        if "training" in config:
             lines.append(f"Batch Size:   {config['training'].get('batch_size', 'N/A')}")
             lines.append(f"Epochs:       {config['training'].get('num_epochs', 'N/A')}")
-        if 'optimizer' in config:
+        if "optimizer" in config:
             lines.append(f"Learning Rate: {config['optimizer'].get('lr', 'N/A')}")
             lines.append(f"Momentum:     {config['optimizer'].get('momentum', 'N/A')}")
-        if 'scheduler' in config:
+        if "scheduler" in config:
             lines.append(f"LR Step Size: {config['scheduler'].get('step_size', 'N/A')}")
             lines.append(f"LR Gamma:     {config['scheduler'].get('gamma', 'N/A')}")
         lines.append("")
@@ -265,7 +269,7 @@ def save_summary(
     lines.append("")
 
     # Error information (if failed)
-    if status == 'failed' and error_message:
+    if status == "failed" and error_message:
         lines.append("-" * 70)
         lines.append("ERROR")
         lines.append("-" * 70)
@@ -275,7 +279,7 @@ def save_summary(
     lines.append("=" * 70)
 
     # Write to file
-    with open(summary_path, 'w') as f:
-        f.write('\n'.join(lines))
+    with open(summary_path, "w") as f:
+        f.write("\n".join(lines))
 
     logger.debug(f"Updated summary: {summary_path}")

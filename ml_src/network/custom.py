@@ -48,8 +48,12 @@ class SimpleCNN(nn.Module):
 
         # Convolutional layers
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(
+            in_channels=32, out_channels=64, kernel_size=3, padding=1
+        )
+        self.conv3 = nn.Conv2d(
+            in_channels=128, out_channels=128, kernel_size=3, padding=1
+        )
 
         # Pooling layer (reused)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -57,7 +61,7 @@ class SimpleCNN(nn.Module):
         # Calculate flattened size after conv+pool layers
         # Input: 224x224 -> after 3 pools: 28x28
         # Formula: input_size / (2^num_pools)
-        feature_size = input_size // (2 ** 3)  # 3 pooling layers
+        feature_size = input_size // (2**3)  # 3 pooling layers
         flattened_size = 128 * feature_size * feature_size
 
         # Fully connected layers
@@ -129,7 +133,9 @@ class TinyNet(nn.Module):
 
         self.fc = nn.Linear(flattened_size, num_classes)
 
-        logger.info(f"Created TinyNet: input_size={input_size}, num_classes={num_classes}")
+        logger.info(
+            f"Created TinyNet: input_size={input_size}, num_classes={num_classes}"
+        )
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -139,7 +145,7 @@ class TinyNet(nn.Module):
         return x
 
 
-def get_custom_model(model_name, num_classes, input_size=224, device='cpu', **kwargs):
+def get_custom_model(model_name, num_classes, input_size=224, device="cpu", **kwargs):
     """
     Factory function to create custom models.
 
@@ -166,8 +172,8 @@ def get_custom_model(model_name, num_classes, input_size=224, device='cpu', **kw
     """
     # Registry of available custom models
     MODEL_REGISTRY = {
-        'simple_cnn': SimpleCNN,
-        'tiny_net': TinyNet,
+        "simple_cnn": SimpleCNN,
+        "tiny_net": TinyNet,
         # Add your custom models here:
         # 'my_model': MyCustomModel,
     }
@@ -186,5 +192,7 @@ def get_custom_model(model_name, num_classes, input_size=224, device='cpu', **kw
     # Move to device
     model = model.to(device)
 
-    logger.success(f"Created custom model '{model_name}' with {num_classes} output classes")
+    logger.success(
+        f"Created custom model '{model_name}' with {num_classes} output classes"
+    )
     return model

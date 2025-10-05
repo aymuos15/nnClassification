@@ -5,9 +5,7 @@ Training script for image classification models.
 
 import argparse
 import os
-import shutil
 import torch
-import torch.backends.cudnn as cudnn
 import yaml
 from loguru import logger
 
@@ -23,7 +21,7 @@ from ml_src.checkpointing import load_checkpoint
 
 def load_config(config_path):
     """Load configuration from YAML file."""
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     return config
 
@@ -33,26 +31,26 @@ def override_config(config, args):
     overrides = []
 
     if args.data_dir:
-        config['data']['data_dir'] = args.data_dir
+        config["data"]["data_dir"] = args.data_dir
     if args.batch_size:
-        config['training']['batch_size'] = args.batch_size
+        config["training"]["batch_size"] = args.batch_size
         overrides.append(f"batch_{args.batch_size}")
     if args.num_workers is not None:
-        config['data']['num_workers'] = args.num_workers
+        config["data"]["num_workers"] = args.num_workers
     if args.num_epochs:
-        config['training']['num_epochs'] = args.num_epochs
+        config["training"]["num_epochs"] = args.num_epochs
         overrides.append(f"epochs_{args.num_epochs}")
     if args.lr:
-        config['optimizer']['lr'] = args.lr
+        config["optimizer"]["lr"] = args.lr
         overrides.append(f"lr_{args.lr}")
     if args.momentum:
-        config['optimizer']['momentum'] = args.momentum
+        config["optimizer"]["momentum"] = args.momentum
     if args.step_size:
-        config['scheduler']['step_size'] = args.step_size
+        config["scheduler"]["step_size"] = args.step_size
     if args.gamma:
-        config['scheduler']['gamma'] = args.gamma
+        config["scheduler"]["gamma"] = args.gamma
     if args.fold is not None:
-        config['data']['fold'] = args.fold
+        config["data"]["fold"] = args.fold
         overrides.append(f"fold_{args.fold}")
 
     return config, overrides
@@ -70,7 +68,7 @@ def create_run_dir(overrides, config, config_path):
 
     # Save config to run directory
     config_save_path = os.path.join(run_dir, "config.yaml")
-    with open(config_save_path, 'w') as f:
+    with open(config_save_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
     logger.success(f"Saved config to {config_save_path}")
 
@@ -92,7 +90,7 @@ def setup_logging(run_dir):
         lambda msg: print(msg, end=""),
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
         colorize=True,
-        level="INFO"
+        level="INFO",
     )
 
     # Add file handler (plain text, no colors)
@@ -102,7 +100,7 @@ def setup_logging(run_dir):
         format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {message}",
         rotation="10 MB",
         retention="30 days",
-        level="DEBUG"
+        level="DEBUG",
     )
 
     logger.info(f"Logging to {log_path}")
@@ -111,19 +109,33 @@ def setup_logging(run_dir):
 def main():
     """Main function to orchestrate training."""
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description='Train image classification model')
-    parser.add_argument('--config', type=str, default='ml_src/config.yaml',
-                        help='Path to configuration file')
-    parser.add_argument('--resume', type=str, help='Path to checkpoint to resume from (e.g., runs/base/last.pt)')
-    parser.add_argument('--data_dir', type=str, help='Path to dataset')
-    parser.add_argument('--batch_size', type=int, help='Batch size for training')
-    parser.add_argument('--num_workers', type=int, help='Number of data loading workers')
-    parser.add_argument('--num_epochs', type=int, help='Number of training epochs')
-    parser.add_argument('--lr', type=float, help='Learning rate')
-    parser.add_argument('--momentum', type=float, help='SGD momentum')
-    parser.add_argument('--step_size', type=int, help='LR scheduler step size')
-    parser.add_argument('--gamma', type=float, help='LR scheduler gamma')
-    parser.add_argument('--fold', type=int, help='Fold number for cross-validation (0-indexed, default: 0)')
+    parser = argparse.ArgumentParser(description="Train image classification model")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="ml_src/config.yaml",
+        help="Path to configuration file",
+    )
+    parser.add_argument(
+        "--resume",
+        type=str,
+        help="Path to checkpoint to resume from (e.g., runs/base/last.pt)",
+    )
+    parser.add_argument("--data_dir", type=str, help="Path to dataset")
+    parser.add_argument("--batch_size", type=int, help="Batch size for training")
+    parser.add_argument(
+        "--num_workers", type=int, help="Number of data loading workers"
+    )
+    parser.add_argument("--num_epochs", type=int, help="Number of training epochs")
+    parser.add_argument("--lr", type=float, help="Learning rate")
+    parser.add_argument("--momentum", type=float, help="SGD momentum")
+    parser.add_argument("--step_size", type=int, help="LR scheduler step size")
+    parser.add_argument("--gamma", type=float, help="LR scheduler gamma")
+    parser.add_argument(
+        "--fold",
+        type=int,
+        help="Fold number for cross-validation (0-indexed, default: 0)",
+    )
 
     args = parser.parse_args()
 
@@ -140,16 +152,16 @@ def main():
     logger.info(f"Run directory: {run_dir}")
 
     # Set random seed for reproducibility
-    seed = config.get('seed', 42)
-    deterministic = config.get('deterministic', False)
+    seed = config.get("seed", 42)
+    deterministic = config.get("deterministic", False)
     set_seed(seed, deterministic)
 
     # Determine device
-    device_str = config['training']['device']
-    if device_str.startswith('cuda') and torch.cuda.is_available():
+    device_str = config["training"]["device"]
+    if device_str.startswith("cuda") and torch.cuda.is_available():
         device = torch.device(device_str)
     else:
-        device = torch.device('cpu')
+        device = torch.device("cpu")
 
     logger.info(f"Using device: {device}")
 
@@ -172,9 +184,9 @@ def main():
     criterion = get_criterion()
 
     # Training
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.info("Starting Training")
-    logger.info("="*50)
+    logger.info("=" * 50)
 
     # Create optimizer and scheduler
     optimizer = get_optimizer(model, config)
@@ -194,12 +206,20 @@ def main():
             return
 
         logger.info(f"Resuming from checkpoint: {args.resume}")
-        start_epoch, resume_best_acc, resume_train_losses, resume_val_losses, resume_train_accs, resume_val_accs, _ = load_checkpoint(
+        (
+            start_epoch,
+            resume_best_acc,
+            resume_train_losses,
+            resume_val_losses,
+            resume_train_accs,
+            resume_val_accs,
+            _,
+        ) = load_checkpoint(
             checkpoint_path=args.resume,
             model=model,
             optimizer=optimizer,
             scheduler=scheduler,
-            device=device
+            device=device,
         )
         # Continue from the next epoch
         start_epoch += 1
@@ -222,14 +242,14 @@ def main():
         resume_train_losses=resume_train_losses,
         resume_val_losses=resume_val_losses,
         resume_train_accs=resume_train_accs,
-        resume_val_accs=resume_val_accs
+        resume_val_accs=resume_val_accs,
     )
 
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.success("Training Complete!")
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.info(f"View training metrics: tensorboard --logdir {run_dir}/tensorboard")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

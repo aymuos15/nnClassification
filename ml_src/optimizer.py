@@ -15,8 +15,8 @@ def get_optimizer(model, config):
     Returns:
         Configured optimizer (default: SGD with momentum)
     """
-    lr = config['optimizer']['lr']
-    momentum = config['optimizer'].get('momentum', 0.9)
+    lr = config["optimizer"]["lr"]
+    momentum = config["optimizer"].get("momentum", 0.9)
 
     # Currently uses SGD with momentum
     # In the future, can be extended to support multiple optimizers:
@@ -49,8 +49,8 @@ def get_scheduler(optimizer, config):
     Returns:
         Configured learning rate scheduler (default: StepLR)
     """
-    step_size = config['scheduler'].get('step_size', 7)
-    gamma = config['scheduler'].get('gamma', 0.1)
+    step_size = config["scheduler"].get("step_size", 7)
+    gamma = config["scheduler"].get("gamma", 0.1)
 
     # Currently uses StepLR
     # In the future, can be extended to support multiple schedulers:

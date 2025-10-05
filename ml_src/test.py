@@ -38,7 +38,7 @@ def test_model(model, dataloader, dataset_size, device, class_names=None):
         for i in range(len(labels)):
             true_label = labels[i].item()
             pred_label = preds[i].item()
-            is_correct = (pred_label == true_label)
+            is_correct = pred_label == true_label
 
             if class_names:
                 true_name = class_names[true_label]
@@ -52,6 +52,6 @@ def test_model(model, dataloader, dataset_size, device, class_names=None):
 
     test_acc = running_corrects.double() / dataset_size
 
-    logger.info(f'Overall Test Acc: {test_acc:.4f}')
+    logger.info(f"Overall Test Acc: {test_acc:.4f}")
 
     return test_acc, per_sample_results

@@ -77,26 +77,28 @@ def get_model(config, device):
         ... }
         >>> model = get_model(config, 'cpu')
     """
-    model_config = config['model']
-    num_classes = model_config['num_classes']
-    model_type = model_config.get('type', 'base')  # default to 'base' for backward compatibility
+    model_config = config["model"]
+    num_classes = model_config["num_classes"]
+    model_type = model_config.get(
+        "type", "base"
+    )  # default to 'base' for backward compatibility
 
-    if model_type == 'base':
+    if model_type == "base":
         # Load torchvision model
-        architecture = model_config.get('architecture', 'resnet18')
-        weights = model_config.get('weights', None)
+        architecture = model_config.get("architecture", "resnet18")
+        weights = model_config.get("weights", None)
 
         logger.info(f"Loading base model: {architecture}")
         model = get_base_model(
             architecture=architecture,
             num_classes=num_classes,
             weights=weights,
-            device=device
+            device=device,
         )
 
-    elif model_type == 'custom':
+    elif model_type == "custom":
         # Load custom model
-        custom_arch = model_config.get('custom_architecture')
+        custom_arch = model_config.get("custom_architecture")
         if not custom_arch:
             raise ValueError(
                 "For custom models, 'custom_architecture' must be specified in config. "
@@ -104,8 +106,8 @@ def get_model(config, device):
             )
 
         # Extract optional parameters
-        input_size = model_config.get('input_size', 224)
-        dropout = model_config.get('dropout', 0.5)
+        input_size = model_config.get("input_size", 224)
+        dropout = model_config.get("dropout", 0.5)
 
         logger.info(f"Loading custom model: {custom_arch}")
         model = get_custom_model(
@@ -113,7 +115,7 @@ def get_model(config, device):
             num_classes=num_classes,
             input_size=input_size,
             device=device,
-            dropout=dropout
+            dropout=dropout,
         )
 
     else:
@@ -164,8 +166,8 @@ def load_model(model, path, device):
     checkpoint = torch.load(path, map_location=device, weights_only=False)
 
     # Handle both full checkpoints and standalone state dicts
-    if 'model_state_dict' in checkpoint:
-        model.load_state_dict(checkpoint['model_state_dict'])
+    if "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
     else:
         model.load_state_dict(checkpoint)
 
@@ -174,4 +176,4 @@ def load_model(model, path, device):
 
 
 # Export main API
-__all__ = ['get_model', 'save_model', 'load_model']
+__all__ = ["get_model", "save_model", "load_model"]

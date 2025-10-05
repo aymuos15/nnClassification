@@ -8,7 +8,6 @@ and saves them as index files (no data duplication).
 
 import argparse
 import os
-import shutil
 import tempfile
 from pathlib import Path
 from loguru import logger
@@ -55,7 +54,7 @@ def write_index_file(file_paths, output_path):
         file_paths: List of file paths to write
         output_path: Path to output index file
     """
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         for path in file_paths:
             f.write(f"{path}\n")
 
@@ -84,17 +83,19 @@ def create_single_fold(raw_data_dir, temp_output_dir, ratio, seed):
         seed=seed,
         ratio=ratio,
         group_prefix=None,
-        move=False  # Copy files (we'll delete temp dir later)
+        move=False,  # Copy files (we'll delete temp dir later)
     )
 
-    train_dir = os.path.join(temp_output_dir, 'train')
-    val_dir = os.path.join(temp_output_dir, 'val')
-    test_dir = os.path.join(temp_output_dir, 'test')
+    train_dir = os.path.join(temp_output_dir, "train")
+    val_dir = os.path.join(temp_output_dir, "val")
+    test_dir = os.path.join(temp_output_dir, "test")
 
     return train_dir, val_dir, test_dir
 
 
-def create_cv_splits(raw_data_dir, output_dir, num_folds=5, ratio=(0.7, 0.15, 0.15), seed=42):
+def create_cv_splits(
+    raw_data_dir, output_dir, num_folds=5, ratio=(0.7, 0.15, 0.15), seed=42
+):
     """
     Create k-fold cross-validation splits as index files.
 
@@ -105,15 +106,15 @@ def create_cv_splits(raw_data_dir, output_dir, num_folds=5, ratio=(0.7, 0.15, 0.
         ratio: Tuple of (train, val, test) split ratios
         seed: Base random seed for reproducibility
     """
-    logger.info("="*60)
+    logger.info("=" * 60)
     logger.info("Cross-Validation Split Generation")
-    logger.info("="*60)
+    logger.info("=" * 60)
     logger.info(f"Raw data directory: {raw_data_dir}")
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Number of folds: {num_folds}")
     logger.info(f"Split ratio (train/val/test): {ratio}")
     logger.info(f"Base seed: {seed}")
-    logger.info("="*60)
+    logger.info("=" * 60)
 
     # Validate inputs
     if not os.path.exists(raw_data_dir):
@@ -146,31 +147,30 @@ def create_cv_splits(raw_data_dir, output_dir, num_folds=5, ratio=(0.7, 0.15, 0.
 
             # Write index files
             write_index_file(
-                train_paths,
-                os.path.join(output_dir, f'fold_{fold_idx}_train.txt')
+                train_paths, os.path.join(output_dir, f"fold_{fold_idx}_train.txt")
             )
             write_index_file(
-                val_paths,
-                os.path.join(output_dir, f'fold_{fold_idx}_val.txt')
+                val_paths, os.path.join(output_dir, f"fold_{fold_idx}_val.txt")
             )
             write_index_file(
-                test_paths,
-                os.path.join(output_dir, f'fold_{fold_idx}_test.txt')
+                test_paths, os.path.join(output_dir, f"fold_{fold_idx}_test.txt")
             )
 
-            logger.success(f"Fold {fold_idx} complete: {len(train_paths)} train, "
-                         f"{len(val_paths)} val, {len(test_paths)} test")
+            logger.success(
+                f"Fold {fold_idx} complete: {len(train_paths)} train, "
+                f"{len(val_paths)} val, {len(test_paths)} test"
+            )
 
-    logger.info("="*60)
+    logger.info("=" * 60)
     logger.success(f"All {num_folds} folds generated successfully!")
     logger.info(f"Index files saved to: {output_dir}")
-    logger.info("="*60)
+    logger.info("=" * 60)
 
 
 def main():
     """Main function for command-line interface."""
     parser = argparse.ArgumentParser(
-        description='Generate k-fold cross-validation splits as index files',
+        description="Generate k-fold cross-validation splits as index files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -198,20 +198,41 @@ Output structure:
   ├── fold_0_test.txt
   ├── fold_1_train.txt
   └── ...
-        """
+        """,
     )
 
-    parser.add_argument('--raw_data', type=str, required=True,
-                        help='Path to raw data directory containing class subdirectories')
-    parser.add_argument('--output', type=str, required=True,
-                        help='Path to output directory for index files')
-    parser.add_argument('--folds', type=int, default=5,
-                        help='Number of CV folds to generate (default: 5)')
-    parser.add_argument('--ratio', type=float, nargs=3, default=[0.7, 0.15, 0.15],
-                        metavar=('TRAIN', 'VAL', 'TEST'),
-                        help='Split ratios for train/val/test (default: 0.7 0.15 0.15)')
-    parser.add_argument('--seed', type=int, default=42,
-                        help='Base random seed for reproducibility (default: 42)')
+    parser.add_argument(
+        "--raw_data",
+        type=str,
+        required=True,
+        help="Path to raw data directory containing class subdirectories",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        required=True,
+        help="Path to output directory for index files",
+    )
+    parser.add_argument(
+        "--folds",
+        type=int,
+        default=5,
+        help="Number of CV folds to generate (default: 5)",
+    )
+    parser.add_argument(
+        "--ratio",
+        type=float,
+        nargs=3,
+        default=[0.7, 0.15, 0.15],
+        metavar=("TRAIN", "VAL", "TEST"),
+        help="Split ratios for train/val/test (default: 0.7 0.15 0.15)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Base random seed for reproducibility (default: 42)",
+    )
 
     args = parser.parse_args()
 
@@ -224,9 +245,9 @@ Output structure:
         output_dir=args.output,
         num_folds=args.folds,
         ratio=ratio,
-        seed=args.seed
+        seed=args.seed,
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

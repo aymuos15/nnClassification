@@ -17,18 +17,18 @@ def get_dataloaders(datasets, config):
     Returns:
         Dictionary of DataLoaders for train, val, and test splits
     """
-    batch_size = config['training']['batch_size']
-    num_workers = config['data']['num_workers']
-    seed = config.get('seed', 42)
+    batch_size = config["training"]["batch_size"]
+    num_workers = config["data"]["num_workers"]
+    seed = config.get("seed", 42)
 
     # Create generator for reproducible DataLoader
     g = torch.Generator()
     g.manual_seed(seed)
 
     dataloaders = {}
-    for split in ['train', 'val', 'test']:
+    for split in ["train", "val", "test"]:
         # Shuffle training data, but not validation or test data
-        shuffle = (split == 'train')
+        shuffle = split == "train"
 
         dataloaders[split] = torch.utils.data.DataLoader(
             datasets[split],
@@ -36,7 +36,7 @@ def get_dataloaders(datasets, config):
             shuffle=shuffle,
             num_workers=num_workers,
             worker_init_fn=seed_worker,
-            generator=g
+            generator=g,
         )
 
     return dataloaders
@@ -52,4 +52,4 @@ def get_dataset_sizes(datasets):
     Returns:
         Dictionary with sizes for train, val, and test splits
     """
-    return {split: len(datasets[split]) for split in ['train', 'val', 'test']}
+    return {split: len(datasets[split]) for split in ["train", "val", "test"]}

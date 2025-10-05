@@ -7,7 +7,7 @@ import torch
 @pytest.fixture
 def device():
     """Fixture providing CPU device for testing."""
-    return 'cpu'
+    return "cpu"
 
 
 @pytest.fixture
@@ -50,10 +50,10 @@ def sample_input_299(batch_size):
 def base_config_template():
     """Fixture providing base configuration template."""
     return {
-        'model': {
-            'type': 'base',
-            'architecture': 'resnet18',
-            'num_classes': 2,
-            'weights': None
+        "model": {
+            "type": "base",
+            "architecture": "resnet18",
+            "num_classes": 2,
+            "weights": None,
         }
     }

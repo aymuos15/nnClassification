@@ -3,9 +3,8 @@
 import os
 from pathlib import Path
 from PIL import Image
-import torch
 from torch.utils.data import Dataset
-from torchvision import datasets, transforms
+from torchvision import transforms
 
 
 class IndexedImageDataset(Dataset):
@@ -33,18 +32,18 @@ class IndexedImageDataset(Dataset):
         if not os.path.exists(index_file):
             raise FileNotFoundError(f"Index file not found: {index_file}")
 
-        with open(index_file, 'r') as f:
+        with open(index_file, "r") as f:
             paths = [line.strip() for line in f if line.strip()]
 
         # Build class mapping and samples list efficiently
         # Expected format: raw/class_name/image.jpg
         class_names = set()
         data_root_parent = str(self.data_root.parent)  # Pre-compute parent path
-        
+
         temp_samples = []
         for path in paths:
             # Extract class name efficiently (assume format: raw/class_name/image.jpg)
-            parts = path.split('/')
+            parts = path.split("/")
             if len(parts) >= 2:
                 class_name = parts[-2]  # Parent directory is class name
                 class_names.add(class_name)
@@ -79,7 +78,7 @@ class IndexedImageDataset(Dataset):
 
         # Load image
         try:
-            image = Image.open(img_path).convert('RGB')
+            image = Image.open(img_path).convert("RGB")
         except Exception as e:
             raise RuntimeError(f"Error loading image {img_path}: {e}")
 
@@ -102,26 +101,26 @@ def get_transforms(config):
     """
     data_transforms = {}
 
-    for split in ['train', 'val', 'test']:
-        transform_config = config['transforms'][split]
+    for split in ["train", "val", "test"]:
+        transform_config = config["transforms"][split]
         transform_list = []
 
         # Resize
-        if 'resize' in transform_config:
-            resize_size = tuple(transform_config['resize'])
+        if "resize" in transform_config:
+            resize_size = tuple(transform_config["resize"])
             transform_list.append(transforms.Resize(resize_size))
 
         # Random horizontal flip (only for training)
-        if split == 'train' and transform_config.get('random_horizontal_flip', False):
+        if split == "train" and transform_config.get("random_horizontal_flip", False):
             transform_list.append(transforms.RandomHorizontalFlip())
 
         # Convert to tensor
         transform_list.append(transforms.ToTensor())
 
         # Normalization
-        if 'normalize' in transform_config:
-            mean = transform_config['normalize']['mean']
-            std = transform_config['normalize']['std']
+        if "normalize" in transform_config:
+            mean = transform_config["normalize"]["mean"]
+            std = transform_config["normalize"]["std"]
             transform_list.append(transforms.Normalize(mean, std))
 
         data_transforms[split] = transforms.Compose(transform_list)
@@ -146,20 +145,18 @@ def get_datasets(config):
 
     # Load from index files (CV mode is mandatory)
     # Assumes data_dir/raw/ contains images and data_dir/splits/ contains index files
-    fold = config['data'].get('fold', 0)
-    data_dir = config['data']['data_dir']
+    fold = config["data"].get("fold", 0)
+    data_dir = config["data"]["data_dir"]
 
     # Hardcoded subdirectories (always 'raw' and 'splits')
-    data_root = os.path.join(data_dir, 'raw')
-    splits_dir = os.path.join(data_dir, 'splits')
+    data_root = os.path.join(data_dir, "raw")
+    splits_dir = os.path.join(data_dir, "splits")
 
     image_datasets = {}
-    for split in ['train', 'val', 'test']:
-        index_file = os.path.join(splits_dir, f'fold_{fold}_{split}.txt')
+    for split in ["train", "val", "test"]:
+        index_file = os.path.join(splits_dir, f"fold_{fold}_{split}.txt")
         image_datasets[split] = IndexedImageDataset(
-            index_file=index_file,
-            data_root=data_root,
-            transform=data_transforms[split]
+            index_file=index_file, data_root=data_root, transform=data_transforms[split]
         )
 
     return image_datasets
@@ -175,4 +172,4 @@ def get_class_names(datasets_dict):
     Returns:
         List of class names
     """
-    return datasets_dict['train'].classes
+    return datasets_dict["train"].classes

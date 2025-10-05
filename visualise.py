@@ -7,14 +7,12 @@ import argparse
 import os
 import shutil
 import subprocess
-import sys
 import torch
 import torchvision
 import yaml
 from torch.utils.tensorboard import SummaryWriter
 from loguru import logger
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 from ml_src.dataset import get_datasets, get_class_names
 from ml_src.loader import get_dataloaders
@@ -23,7 +21,7 @@ from ml_src.network import get_model, load_model
 
 def load_config(config_path):
     """Load configuration from YAML file."""
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     return config
 
@@ -35,7 +33,7 @@ def setup_logging():
         lambda msg: print(msg, end=""),
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
         colorize=True,
-        level="INFO"
+        level="INFO",
     )
 
 
@@ -61,7 +59,7 @@ def denormalize(tensor, mean, std):
     return tensor * std + mean
 
 
-def visualize_samples(run_dir, config, split='train', num_images=16):
+def visualize_samples(run_dir, config, split="train", num_images=16):
     """
     Visualize sample images from dataset and log to TensorBoard.
 
@@ -89,27 +87,31 @@ def visualize_samples(run_dir, config, split='train', num_images=16):
     labels = labels[:num_images]
 
     # Denormalize images for visualization
-    mean = config['transforms'][split]['normalize']['mean']
-    std = config['transforms'][split]['normalize']['std']
+    mean = config["transforms"][split]["normalize"]["mean"]
+    std = config["transforms"][split]["normalize"]["std"]
     images_denorm = denormalize(images, mean, std)
 
     # Clamp values to [0, 1] for display
     images_denorm = torch.clamp(images_denorm, 0, 1)
 
     # Create grid
-    grid = torchvision.utils.make_grid(images_denorm, nrow=4, padding=2, normalize=False)
+    grid = torchvision.utils.make_grid(
+        images_denorm, nrow=4, padding=2, normalize=False
+    )
 
     # Setup TensorBoard writer
-    tensorboard_dir = os.path.join(run_dir, 'tensorboard')
+    tensorboard_dir = os.path.join(run_dir, "tensorboard")
     writer = SummaryWriter(tensorboard_dir)
 
     # Log to TensorBoard
-    writer.add_image(f'Dataset_Samples/{split}', grid, 0)
+    writer.add_image(f"Dataset_Samples/{split}", grid, 0)
 
     # Also log individual images with labels
     for idx, (img, label) in enumerate(zip(images_denorm, labels)):
         class_name = class_names[label.item()]
-        writer.add_image(f'Dataset_Samples/{split}_individual/{class_name}_{idx}', img, 0)
+        writer.add_image(
+            f"Dataset_Samples/{split}_individual/{class_name}_{idx}", img, 0
+        )
 
     writer.close()
 
@@ -135,14 +137,16 @@ def add_colored_border(image_tensor, color, border_width=5):
     # Create a new image with border
     new_width = img.width + 2 * border_width
     new_height = img.height + 2 * border_width
-    bordered_img = Image.new('RGB', (new_width, new_height), color)
+    bordered_img = Image.new("RGB", (new_width, new_height), color)
     bordered_img.paste(img, (border_width, border_width))
 
     # Convert back to tensor
     return torchvision.transforms.ToTensor()(bordered_img)
 
 
-def visualize_predictions(run_dir, config, checkpoint='best.pt', split='val', num_images=16):
+def visualize_predictions(
+    run_dir, config, checkpoint="best.pt", split="val", num_images=16
+):
     """
     Visualize model predictions and log to TensorBoard.
 
@@ -156,11 +160,11 @@ def visualize_predictions(run_dir, config, checkpoint='best.pt', split='val', nu
     logger.info(f"Visualizing predictions on {split} split using {checkpoint}...")
 
     # Determine device
-    device_str = config['training']['device']
-    if device_str.startswith('cuda') and torch.cuda.is_available():
+    device_str = config["training"]["device"]
+    if device_str.startswith("cuda") and torch.cuda.is_available():
         device = torch.device(device_str)
     else:
-        device = torch.device('cpu')
+        device = torch.device("cpu")
 
     logger.info(f"Using device: {device}")
 
@@ -172,7 +176,7 @@ def visualize_predictions(run_dir, config, checkpoint='best.pt', split='val', nu
 
     # Create and load model
     model = get_model(config, device)
-    checkpoint_path = os.path.join(run_dir, 'weights', checkpoint)
+    checkpoint_path = os.path.join(run_dir, "weights", checkpoint)
 
     if not os.path.exists(checkpoint_path):
         logger.error(f"Checkpoint {checkpoint_path} not found")
@@ -196,8 +200,8 @@ def visualize_predictions(run_dir, config, checkpoint='best.pt', split='val', nu
     preds = preds.cpu()
 
     # Denormalize images
-    mean = config['transforms'][split]['normalize']['mean']
-    std = config['transforms'][split]['normalize']['std']
+    mean = config["transforms"][split]["normalize"]["mean"]
+    std = config["transforms"][split]["normalize"]["std"]
     images_denorm = denormalize(images, mean, std)
     images_denorm = torch.clamp(images_denorm, 0, 1)
 
@@ -212,32 +216,38 @@ def visualize_predictions(run_dir, config, checkpoint='best.pt', split='val', nu
     bordered_images = torch.stack(bordered_images)
 
     # Create grid
-    grid = torchvision.utils.make_grid(bordered_images, nrow=4, padding=2, normalize=False)
+    grid = torchvision.utils.make_grid(
+        bordered_images, nrow=4, padding=2, normalize=False
+    )
 
     # Setup TensorBoard writer
-    tensorboard_dir = os.path.join(run_dir, 'tensorboard')
+    tensorboard_dir = os.path.join(run_dir, "tensorboard")
     writer = SummaryWriter(tensorboard_dir)
 
     # Log to TensorBoard
-    writer.add_image(f'Predictions/{split}', grid, 0)
+    writer.add_image(f"Predictions/{split}", grid, 0)
 
     # Calculate accuracy for this batch
     correct = (preds == labels).sum().item()
     accuracy = correct / len(labels)
 
     # Log individual predictions with metadata
-    for idx, (img, true_label, pred_label) in enumerate(zip(bordered_images, labels, preds)):
+    for idx, (img, true_label, pred_label) in enumerate(
+        zip(bordered_images, labels, preds)
+    ):
         true_class = class_names[true_label.item()]
         pred_class = class_names[pred_label.item()]
         is_correct = true_label.item() == pred_label.item()
         status = "Correct" if is_correct else "Incorrect"
 
-        tag = f'Predictions/{split}_individual/{status}/{idx}_true_{true_class}_pred_{pred_class}'
+        tag = f"Predictions/{split}_individual/{status}/{idx}_true_{true_class}_pred_{pred_class}"
         writer.add_image(tag, img, 0)
 
     writer.close()
 
-    logger.success(f"Logged {len(images)} predictions to TensorBoard (Accuracy: {accuracy:.2%})")
+    logger.success(
+        f"Logged {len(images)} predictions to TensorBoard (Accuracy: {accuracy:.2%})"
+    )
     logger.info(f"Green border = Correct prediction, Red border = Incorrect prediction")
     logger.info(f"View in TensorBoard: tensorboard --logdir {run_dir}/tensorboard")
 
@@ -250,7 +260,7 @@ def launch_tensorboard(run_dir, port=6006):
         run_dir: Run directory path
         port: Port number for TensorBoard server
     """
-    tensorboard_dir = os.path.join(run_dir, 'tensorboard')
+    tensorboard_dir = os.path.join(run_dir, "tensorboard")
 
     if not os.path.exists(tensorboard_dir):
         logger.warning(f"TensorBoard directory not found: {tensorboard_dir}")
@@ -263,7 +273,9 @@ def launch_tensorboard(run_dir, port=6006):
     logger.info("Press Ctrl+C to stop TensorBoard")
 
     try:
-        subprocess.run(['tensorboard', '--logdir', tensorboard_dir, '--port', str(port)])
+        subprocess.run(
+            ["tensorboard", "--logdir", tensorboard_dir, "--port", str(port)]
+        )
     except KeyboardInterrupt:
         logger.info("\nTensorBoard stopped")
     except FileNotFoundError:
@@ -279,7 +291,7 @@ def clean_tensorboard_logs(run_dir=None):
     """
     if run_dir:
         # Clean specific run directory
-        tensorboard_dir = os.path.join(run_dir, 'tensorboard')
+        tensorboard_dir = os.path.join(run_dir, "tensorboard")
         if os.path.exists(tensorboard_dir):
             shutil.rmtree(tensorboard_dir)
             logger.success(f"Removed TensorBoard logs from {run_dir}")
@@ -287,15 +299,15 @@ def clean_tensorboard_logs(run_dir=None):
             logger.warning(f"No TensorBoard logs found in {run_dir}")
     else:
         # Clean all runs
-        if not os.path.exists('runs'):
+        if not os.path.exists("runs"):
             logger.warning("No runs directory found")
             return
 
         cleaned_count = 0
-        for run_name in os.listdir('runs'):
-            run_path = os.path.join('runs', run_name)
+        for run_name in os.listdir("runs"):
+            run_path = os.path.join("runs", run_name)
             if os.path.isdir(run_path):
-                tensorboard_dir = os.path.join(run_path, 'tensorboard')
+                tensorboard_dir = os.path.join(run_path, "tensorboard")
                 if os.path.exists(tensorboard_dir):
                     shutil.rmtree(tensorboard_dir)
                     logger.info(f"Removed TensorBoard logs from {run_path}")
@@ -310,7 +322,7 @@ def clean_tensorboard_logs(run_dir=None):
 def main():
     """Main function for visualization."""
     parser = argparse.ArgumentParser(
-        description='TensorBoard visualization tool for datasets and predictions',
+        description="TensorBoard visualization tool for datasets and predictions",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -328,23 +340,47 @@ Examples:
 
   # Clean TensorBoard logs from specific run
   python visualise.py --mode clean --run_dir runs/base
-        """
+        """,
     )
 
-    parser.add_argument('--mode', type=str, required=True,
-                        choices=['launch', 'samples', 'predictions', 'clean'],
-                        help='Visualization mode')
-    parser.add_argument('--run_dir', type=str, default='runs/base',
-                        help='Path to run directory (default: runs/base)')
-    parser.add_argument('--split', type=str, default='val',
-                        choices=['train', 'val', 'test'],
-                        help='Dataset split to visualize (default: val)')
-    parser.add_argument('--num_images', type=int, default=16,
-                        help='Number of images to visualize (default: 16)')
-    parser.add_argument('--checkpoint', type=str, default='best.pt',
-                        help='Checkpoint to use for predictions (default: best.pt)')
-    parser.add_argument('--port', type=int, default=6006,
-                        help='Port for TensorBoard server (default: 6006)')
+    parser.add_argument(
+        "--mode",
+        type=str,
+        required=True,
+        choices=["launch", "samples", "predictions", "clean"],
+        help="Visualization mode",
+    )
+    parser.add_argument(
+        "--run_dir",
+        type=str,
+        default="runs/base",
+        help="Path to run directory (default: runs/base)",
+    )
+    parser.add_argument(
+        "--split",
+        type=str,
+        default="val",
+        choices=["train", "val", "test"],
+        help="Dataset split to visualize (default: val)",
+    )
+    parser.add_argument(
+        "--num_images",
+        type=int,
+        default=16,
+        help="Number of images to visualize (default: 16)",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default="best.pt",
+        help="Checkpoint to use for predictions (default: best.pt)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=6006,
+        help="Port for TensorBoard server (default: 6006)",
+    )
 
     args = parser.parse_args()
 
@@ -352,8 +388,8 @@ Examples:
     setup_logging()
 
     # Handle clean mode (doesn't require config)
-    if args.mode == 'clean':
-        if args.run_dir == 'runs/base':
+    if args.mode == "clean":
+        if args.run_dir == "runs/base":
             # Default value, clean all
             logger.info("Cleaning TensorBoard logs from all runs...")
             clean_tensorboard_logs(run_dir=None)
@@ -363,12 +399,12 @@ Examples:
         return
 
     # Handle launch mode (doesn't require config)
-    if args.mode == 'launch':
+    if args.mode == "launch":
         launch_tensorboard(args.run_dir, args.port)
         return
 
     # For samples and predictions modes, load config
-    config_path = os.path.join(args.run_dir, 'config.yaml')
+    config_path = os.path.join(args.run_dir, "config.yaml")
     if not os.path.exists(config_path):
         logger.error(f"config.yaml not found in {args.run_dir}")
         logger.error("Please specify a valid run directory with --run_dir")
@@ -378,11 +414,13 @@ Examples:
     logger.info(f"Loaded config from {config_path}")
 
     # Execute requested mode
-    if args.mode == 'samples':
+    if args.mode == "samples":
         visualize_samples(args.run_dir, config, args.split, args.num_images)
-    elif args.mode == 'predictions':
-        visualize_predictions(args.run_dir, config, args.checkpoint, args.split, args.num_images)
+    elif args.mode == "predictions":
+        visualize_predictions(
+            args.run_dir, config, args.checkpoint, args.split, args.num_images
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

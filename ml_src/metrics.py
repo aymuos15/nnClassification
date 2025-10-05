@@ -1,9 +1,7 @@
 """Metrics utilities for model evaluation."""
 
-import io
 import matplotlib.pyplot as plt
 import seaborn as sns
-import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
 from loguru import logger
 
@@ -24,17 +22,17 @@ def save_confusion_matrix(y_true, y_pred, class_names, save_path):
     sns.heatmap(
         cm,
         annot=True,
-        fmt='d',
-        cmap='Blues',
+        fmt="d",
+        cmap="Blues",
         xticklabels=class_names,
         yticklabels=class_names,
-        cbar_kws={'label': 'Count'}
+        cbar_kws={"label": "Count"},
     )
-    plt.title('Confusion Matrix')
-    plt.ylabel('True Label')
-    plt.xlabel('Predicted Label')
+    plt.title("Confusion Matrix")
+    plt.ylabel("True Label")
+    plt.xlabel("Predicted Label")
     plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.close()
 
     logger.success(f"Saved confusion matrix to {save_path}")
@@ -50,14 +48,9 @@ def save_classification_report(y_true, y_pred, class_names, save_path):
         class_names: List of class names
         save_path: Path to save the report (e.g., 'classification_report.txt')
     """
-    report = classification_report(
-        y_true,
-        y_pred,
-        target_names=class_names,
-        digits=4
-    )
+    report = classification_report(y_true, y_pred, target_names=class_names, digits=4)
 
-    with open(save_path, 'w') as f:
+    with open(save_path, "w") as f:
         f.write("Classification Report\n")
         f.write("=" * 80 + "\n\n")
         f.write(report)
@@ -83,21 +76,23 @@ def create_confusion_matrix_figure(y_true, y_pred, class_names):
     sns.heatmap(
         cm,
         annot=True,
-        fmt='d',
-        cmap='Blues',
+        fmt="d",
+        cmap="Blues",
         xticklabels=class_names,
         yticklabels=class_names,
-        cbar_kws={'label': 'Count'}
+        cbar_kws={"label": "Count"},
     )
-    plt.title('Confusion Matrix')
-    plt.ylabel('True Label')
-    plt.xlabel('Predicted Label')
+    plt.title("Confusion Matrix")
+    plt.ylabel("True Label")
+    plt.xlabel("Predicted Label")
     plt.tight_layout()
 
     return fig
 
 
-def log_confusion_matrix_to_tensorboard(writer, y_true, y_pred, class_names, tag, global_step):
+def log_confusion_matrix_to_tensorboard(
+    writer, y_true, y_pred, class_names, tag, global_step
+):
     """
     Log confusion matrix to TensorBoard.
 
@@ -127,10 +122,5 @@ def get_classification_report_str(y_true, y_pred, class_names):
     Returns:
         str: Classification report as formatted string
     """
-    report = classification_report(
-        y_true,
-        y_pred,
-        target_names=class_names,
-        digits=4
-    )
+    report = classification_report(y_true, y_pred, target_names=class_names, digits=4)
     return report
