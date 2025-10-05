@@ -6,22 +6,29 @@ Complete guide to training workflows, best practices, and common scenarios.
 
 ### Quick Start
 ```bash
-# Default training
-python train.py
+# One-time: Generate CV splits
+python splitting.py --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
+
+# Train fold 0
+python train.py --fold 0
 
 # Custom epochs
-python train.py --num_epochs 50
+python train.py --fold 0 --num_epochs 50
 
 # Custom batch size and LR
-python train.py --batch_size 32 --lr 0.01
+python train.py --fold 0 --batch_size 32 --lr 0.01
+
+# Train other folds
+python train.py --fold 1
+python train.py --fold 2
 ```
 
 ## Training Workflows
 
 ### 1. Initial Experiment
 ```bash
-# Quick test (5 epochs)
-python train.py --num_epochs 5
+# Quick test (5 epochs) on fold 0
+python train.py --fold 0 --num_epochs 5
 
 # Check results
 tensorboard --logdir runs/
@@ -29,10 +36,10 @@ tensorboard --logdir runs/
 
 ### 2. Hyperparameter Search
 ```bash
-# Test learning rates
-python train.py --lr 0.0001 --num_epochs 10
-python train.py --lr 0.001 --num_epochs 10
-python train.py --lr 0.01 --num_epochs 10
+# Test learning rates on fold 0
+python train.py --fold 0 --lr 0.0001 --num_epochs 10
+python train.py --fold 0 --lr 0.001 --num_epochs 10
+python train.py --fold 0 --lr 0.01 --num_epochs 10
 
 # Compare in TensorBoard
 tensorboard --logdir runs/
@@ -40,8 +47,10 @@ tensorboard --logdir runs/
 
 ### 3. Full Training
 ```bash
-# Use best hyperparams from search
-python train.py --lr 0.001 --batch_size 32 --num_epochs 100
+# Use best hyperparams from search on all folds
+python train.py --fold 0 --lr 0.001 --batch_size 32 --num_epochs 100
+python train.py --fold 1 --lr 0.001 --batch_size 32 --num_epochs 100
+python train.py --fold 2 --lr 0.001 --batch_size 32 --num_epochs 100
 ```
 
 ## Monitoring Training

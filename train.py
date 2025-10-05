@@ -51,6 +51,9 @@ def override_config(config, args):
         config['scheduler']['step_size'] = args.step_size
     if args.gamma:
         config['scheduler']['gamma'] = args.gamma
+    if args.fold is not None:
+        config['data']['fold'] = args.fold
+        overrides.append(f"fold_{args.fold}")
 
     return config, overrides
 
@@ -120,6 +123,7 @@ def main():
     parser.add_argument('--momentum', type=float, help='SGD momentum')
     parser.add_argument('--step_size', type=int, help='LR scheduler step size')
     parser.add_argument('--gamma', type=float, help='LR scheduler gamma')
+    parser.add_argument('--fold', type=int, help='Fold number for cross-validation (0-indexed, default: 0)')
 
     args = parser.parse_args()
 
