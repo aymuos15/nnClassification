@@ -9,6 +9,7 @@ from loguru import logger
 from torch.utils.tensorboard import SummaryWriter
 
 from ml_src.core.checkpointing import count_parameters, save_summary
+from ml_src.core.early_stopping import EarlyStopping
 from ml_src.core.metrics import (
     get_classification_report_str,
     log_confusion_matrix_to_tensorboard,
@@ -71,6 +72,7 @@ class BaseTrainer(ABC):
         class_names: List of class names
         writer: TensorBoard writer
         num_epochs: Number of epochs to train
+        early_stopping: EarlyStopping instance (None if disabled)
 
     Example:
         >>> class StandardTrainer(BaseTrainer):
@@ -138,6 +140,21 @@ class BaseTrainer(ABC):
         # Count model parameters
         self.num_params = count_parameters(model)
         logger.info(f"Model has {self.num_params:,} trainable parameters")
+
+        # Initialize early stopping if enabled
+        self.early_stopping = None
+        if config.get("training", {}).get("early_stopping", {}).get("enabled", False):
+            es_config = config["training"]["early_stopping"]
+            self.early_stopping = EarlyStopping(
+                patience=es_config.get("patience", 10),
+                metric=es_config.get("metric", "val_acc"),
+                mode=es_config.get("mode", "max"),
+                min_delta=es_config.get("min_delta", 0.0),
+            )
+            logger.info(
+                f"Early stopping enabled: patience={self.early_stopping.patience}, "
+                f"metric={self.early_stopping.metric}, mode={self.early_stopping.mode}"
+            )
 
     @abstractmethod
     def prepare_training(self):
@@ -277,6 +294,7 @@ class BaseTrainer(ABC):
         val_losses = resume_val_losses if resume_val_losses is not None else []
         train_accs = resume_train_accs if resume_train_accs is not None else []
         val_accs = resume_val_accs if resume_val_accs is not None else []
+        early_stop_triggered = False
 
         # Prepare for training (subclass-specific setup)
         self.prepare_training()
@@ -387,6 +405,48 @@ class BaseTrainer(ABC):
                     self.save_checkpoint(epoch, best_acc, metrics, self.best_model_path)
                     logger.success(f"New best model saved! Acc: {best_acc:.4f}")
 
+                # Check early stopping
+                if phase == "val" and self.early_stopping is not None:
+                    metric_value = (
+                        epoch_acc.item()
+                        if self.early_stopping.metric == "val_acc"
+                        else epoch_loss
+                    )
+                    if self.early_stopping.should_stop(epoch, metric_value):
+                        # Save last checkpoint before stopping
+                        metrics = {
+                            "train_losses": train_losses,
+                            "val_losses": val_losses,
+                            "train_accs": train_accs,
+                            "val_accs": val_accs,
+                        }
+                        self.save_checkpoint(epoch, best_acc, metrics, self.last_model_path)
+                        # Set flag to break outer loop after summary update
+                        early_stop_triggered = True
+                        break
+
+            # Check if we need to break out of training loop
+            if early_stop_triggered:
+                # Update summary for early stopping
+                save_summary(
+                    summary_path=self.summary_path,
+                    status="early_stopped",
+                    config=self.config,
+                    device=str(self.device),
+                    dataset_sizes=self.dataset_sizes,
+                    num_parameters=self.num_params,
+                    start_time=since,
+                    current_epoch=epoch + 1,
+                    total_epochs=self.num_epochs,
+                    best_acc=best_acc,
+                    best_epoch=best_epoch,
+                    final_train_acc=train_accs[-1] if train_accs else None,
+                    final_train_loss=train_losses[-1] if train_losses else None,
+                    final_val_acc=val_accs[-1] if val_accs else None,
+                    final_val_loss=val_losses[-1] if val_losses else None,
+                )
+                break
+
             # Save last model checkpoint after each epoch
             metrics = {
                 "train_losses": train_losses,
@@ -419,9 +479,16 @@ class BaseTrainer(ABC):
 
         time_elapsed = time.time() - since
         end_time = time.time()
-        logger.success(
-            f"Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s"
-        )
+
+        # Log completion message
+        if early_stop_triggered:
+            logger.success(
+                f"Training stopped early in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s"
+            )
+        else:
+            logger.success(
+                f"Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s"
+            )
         logger.success(f"Best val Acc: {best_acc:.4f}")
 
         # Load best model weights
@@ -483,17 +550,18 @@ class BaseTrainer(ABC):
             os.path.join(self.run_dir, "logs", "classification_report_val.txt"),
         )
 
-        # Save final completed summary
+        # Save final summary
+        final_status = "early_stopped" if early_stop_triggered else "completed"
         save_summary(
             summary_path=self.summary_path,
-            status="completed",
+            status=final_status,
             config=self.config,
             device=str(self.device),
             dataset_sizes=self.dataset_sizes,
             num_parameters=self.num_params,
             start_time=since,
             end_time=end_time,
-            current_epoch=self.num_epochs,
+            current_epoch=len(train_accs),
             total_epochs=self.num_epochs,
             best_acc=best_acc,
             best_epoch=best_epoch,

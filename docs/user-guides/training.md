@@ -622,6 +622,105 @@ model:
 
 ---
 
+## Preventing Overfitting
+
+Overfitting occurs when your model learns the training data too well but performs poorly on new data. The framework provides several tools to prevent this.
+
+### Early Stopping (Recommended)
+
+Early stopping automatically stops training when validation performance stops improving, preventing the model from overfitting.
+
+**Enable in config:**
+```yaml
+training:
+  num_epochs: 100  # Set high
+  early_stopping:
+    enabled: true
+    patience: 10     # Stop if no improvement for 10 epochs
+    metric: 'val_acc'
+    mode: 'max'
+```
+
+**Benefits:**
+- ✅ Prevents overfitting automatically
+- ✅ Saves compute time
+- ✅ No manual monitoring needed
+- ✅ Loads best model automatically
+
+**Example training output:**
+```
+Epoch 0/99
+--------------------------------------------------
+train Loss: 0.6931 Acc: 0.5000
+val Loss: 0.6925 Acc: 0.5200
+New best model saved! Acc: 0.5200
+
+...
+
+Epoch 45/99
+--------------------------------------------------
+train Loss: 0.0234 Acc: 0.9800
+val Loss: 0.1567 Acc: 0.9400
+
+Early stopping triggered at epoch 45 (val_acc did not improve for 10 epochs)
+Training stopped early in 12m 30s
+Best val Acc: 0.9400
+```
+
+**When to use:**
+- Training for many epochs (>50)
+- Uncertain about optimal stopping point
+- Running multiple experiments
+
+**Tuning patience:**
+- Small datasets: `patience: 5-10`
+- Large datasets: `patience: 15-30`
+- Noisy validation: `patience: 20-50`
+
+See [Early Stopping Configuration](../configuration/training.md#early_stopping) for detailed documentation.
+
+### Other Overfitting Prevention Strategies
+
+**1. Data augmentation (already configured):**
+```yaml
+transforms:
+  train:
+    random_horizontal_flip: true
+    # Add more augmentation as needed
+```
+
+**2. Monitor train/val gap:**
+```bash
+tensorboard --logdir runs/
+```
+- Watch for diverging train/val curves
+- Large gap = overfitting
+
+**3. Use pretrained weights:**
+```yaml
+model:
+  weights: 'DEFAULT'  # ImageNet pretrained
+```
+- Reduces overfitting on small datasets
+- Better starting point
+
+**4. Reduce model complexity:**
+```yaml
+model:
+  architecture: 'resnet18'  # Instead of resnet50
+  dropout: 0.5              # For custom models
+```
+
+**5. Cross-validation:**
+```bash
+# Train all folds to verify generalization
+ml-train --config config.yaml --fold 0
+ml-train --config config.yaml --fold 1
+ml-train --config config.yaml --fold 2
+```
+
+---
+
 ## Performance Optimization
 
 ### GPU Utilization
