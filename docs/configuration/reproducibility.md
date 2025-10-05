@@ -43,11 +43,11 @@ seed: 42
 
 ```bash
 # Train 5 models with different seeds for ensemble
-python train.py --seed 42
-python train.py --seed 123
-python train.py --seed 456
-python train.py --seed 789
-python train.py --seed 101112
+ml-train --seed 42
+ml-train --seed 123
+ml-train --seed 456
+ml-train --seed 789
+ml-train --seed 101112
 ```
 
 ---
@@ -246,9 +246,9 @@ Even with `deterministic: true`, exact reproducibility requires:
 5. **Test reproducibility**
    ```bash
    # Run twice with same seed
-   python train.py --seed 42
-   python train.py --seed 42
-   
+   ml-train --seed 42
+   ml-train --seed 42
+
    # Compare results - should be identical (if deterministic: true)
    # or very similar (if deterministic: false)
    ```

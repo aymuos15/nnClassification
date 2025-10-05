@@ -306,57 +306,57 @@ Model Input
 ### Component Communication
 
 ```
-train.py
+ml-train (ml_src/cli/train.py)
     │
-    ├─► seeding.set_seed()
+    ├─► core.seeding.set_seed()
     │
-    ├─► dataset.get_datasets()
-    │   └─► dataset.get_transforms()
+    ├─► core.dataset.get_datasets()
+    │   └─► core.dataset.get_transforms()
     │
-    ├─► loader.get_dataloaders()
-    │   └─► seeding.seed_worker()
+    ├─► core.loader.get_dataloaders()
+    │   └─► core.seeding.seed_worker()
     │
-    ├─► network.get_model()
-    │   ├─► network.base.get_base_model()
-    │   └─► network.custom.get_custom_model()
+    ├─► core.network.get_model()
+    │   ├─► core.network.base.get_base_model()
+    │   └─► core.network.custom.get_custom_model()
     │
-    ├─► optimizer.get_optimizer()
+    ├─► core.optimizer.get_optimizer()
     │
-    ├─► optimizer.get_scheduler()
+    ├─► core.optimizer.get_scheduler()
     │
-    ├─► loss.get_criterion()
+    ├─► core.loss.get_criterion()
     │
-    ├─► checkpointing.load_checkpoint() (if resume)
+    ├─► core.checkpointing.load_checkpoint() (if resume)
     │
-    ├─► trainer.train_model()
+    ├─► core.trainer.train_model()
     │   │
     │   ├─► [Training loop]
     │   │
-    │   ├─► checkpointing.save_checkpoint()
+    │   ├─► core.checkpointing.save_checkpoint()
     │   │
-    │   ├─► checkpointing.save_summary()
+    │   ├─► core.checkpointing.save_summary()
     │   │
-    │   └─► trainer.collect_predictions()
+    │   └─► core.trainer.collect_predictions()
     │
-    └─► metrics.save_confusion_matrix()
-        metrics.save_classification_report()
+    └─► core.metrics.save_confusion_matrix()
+        core.metrics.save_classification_report()
 
-inference.py
+ml-inference (ml_src/cli/inference.py)
     │
     ├─► load config.yaml
     │
-    ├─► dataset.get_datasets()
+    ├─► core.dataset.get_datasets()
     │
-    ├─► loader.get_dataloaders()
+    ├─► core.loader.get_dataloaders()
     │
-    ├─► network.get_model()
+    ├─► core.network.get_model()
     │
-    ├─► network.load_model()
+    ├─► core.network.load_model()
     │
-    ├─► test.test_model()
+    ├─► core.test.test_model()
     │
-    └─► metrics.save_confusion_matrix()
-        metrics.save_classification_report()
+    └─► core.metrics.save_confusion_matrix()
+        core.metrics.save_classification_report()
 ```
 
 ---
@@ -456,7 +456,7 @@ tensorboard --logdir runs/
 
 **Example:**
 ```bash
-python train.py --lr 0.01 --batch_size 32
+ml-train --lr 0.01 --batch_size 32
 
 # Flow:
 config = load('ml_src/config.yaml')  # lr: 0.001, batch_size: 4

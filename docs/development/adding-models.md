@@ -20,7 +20,7 @@ All torchvision models are automatically supported.
 
 ### Step 1: Define Model Class
 
-Edit `ml_src/network/custom.py`:
+Edit `ml_src/core/network/custom.py`:
 
 ```python
 import torch.nn as nn
@@ -52,7 +52,7 @@ class MyCustomModel(nn.Module):
 
 ### Step 2: Register Model
 
-Add to `MODEL_REGISTRY` in `ml_src/network/custom.py`:
+Add to `MODEL_REGISTRY` in `ml_src/core/network/custom.py`:
 
 ```python
 MODEL_REGISTRY = {
@@ -75,7 +75,7 @@ model:
 ### Step 4: Train
 
 ```bash
-python train.py
+ml-train
 ```
 
 ## Example: ResNet-like Model
@@ -135,7 +135,7 @@ class MyResNet(nn.Module):
 
 ```python
 # Test script
-from ml_src.network import get_model
+from ml_src.core.network import get_model
 import torch
 
 config = {

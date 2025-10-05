@@ -1,109 +1,133 @@
-# Adding Custom Transforms
+# Adding Custom Optimizers
 
-Add new data augmentation techniques.
+Add new optimization algorithms.
 
 ## Overview
 
-Transforms are defined in `ml_src/dataset.py::get_transforms()`.
+Optimizers are defined in `ml_src/core/optimizer.py::get_optimizer()`.
 
-## Step 1: Update get_transforms()
-
-Edit `ml_src/dataset.py`:
+## Current Implementation
 
 ```python
-from torchvision import transforms as T
-
-def get_transforms(config):
-    transform_config = config['transforms']
+def get_optimizer(parameters, config):
+    opt_config = config['optimizer']
     
-    transforms_dict = {}
+    optimizer = torch.optim.SGD(
+        parameters,
+        lr=opt_config['lr'],
+        momentum=opt_config['momentum']
+    )
     
-    for split in ['train', 'val', 'test']:
-        transform_list = []
-        
-        # Resize
-        resize = transform_config[split]['resize']
-        transform_list.append(T.Resize(resize))
-        
-        # NEW: Add rotation (training only)
-        if split == 'train' and transform_config[split].get('random_rotation'):
-            degrees = transform_config[split]['random_rotation']
-            transform_list.append(T.RandomRotation(degrees))
-        
-        # Horizontal flip
-        if transform_config[split].get('random_horizontal_flip'):
-            transform_list.append(T.RandomHorizontalFlip())
-        
-        # NEW: Add color jitter (training only)
-        if split == 'train' and transform_config[split].get('color_jitter'):
-            cj = transform_config[split]['color_jitter']
-            transform_list.append(T.ColorJitter(
-                brightness=cj.get('brightness', 0),
-                contrast=cj.get('contrast', 0),
-                saturation=cj.get('saturation', 0),
-                hue=cj.get('hue', 0)
-            ))
-        
-        # ToTensor and Normalize
-        transform_list.append(T.ToTensor())
-        normalize = transform_config[split]['normalize']
-        transform_list.append(T.Normalize(
-            mean=normalize['mean'],
-            std=normalize['std']
-        ))
-        
-        transforms_dict[split] = T.Compose(transform_list)
-    
-    return transforms_dict
+    return optimizer
 ```
 
-## Step 2: Update Config
+## Adding New Optimizer
+
+### Step 1: Update get_optimizer()
+
+```python
+def get_optimizer(parameters, config):
+    opt_config = config['optimizer']
+    opt_type = opt_config.get('type', 'sgd')  # NEW
+    
+    if opt_type == 'sgd':
+        optimizer = torch.optim.SGD(
+            parameters,
+            lr=opt_config['lr'],
+            momentum=opt_config['momentum']
+        )
+    
+    elif opt_type == 'adam':  # NEW
+        optimizer = torch.optim.Adam(
+            parameters,
+            lr=opt_config['lr'],
+            betas=opt_config.get('betas', (0.9, 0.999))
+        )
+    
+    elif opt_type == 'adamw':  # NEW
+        optimizer = torch.optim.AdamW(
+            parameters,
+            lr=opt_config['lr'],
+            weight_decay=opt_config.get('weight_decay', 0.01)
+        )
+    
+    else:
+        raise ValueError(f"Unknown optimizer: {opt_type}")
+    
+    return optimizer
+```
+
+### Step 2: Update Config
 
 ```yaml
-transforms:
-  train:
-    resize: [224, 224]
-    random_horizontal_flip: true
-    random_rotation: 15  # NEW
-    color_jitter:        # NEW
-      brightness: 0.2
-      contrast: 0.2
-      saturation: 0.2
-      hue: 0.1
-    normalize:
-      mean: [0.485, 0.456, 0.406]
-      std: [0.229, 0.224, 0.225]
+optimizer:
+  type: 'adam'  # NEW
+  lr: 0.001
+  betas: [0.9, 0.999]  # NEW (Adam-specific)
 ```
 
-## Common Transforms
+## Popular Optimizers
+
+### Adam
+```yaml
+optimizer:
+  type: 'adam'
+  lr: 0.001
+  betas: [0.9, 0.999]
+  eps: 1e-8
+```
+
+### AdamW
+```yaml
+optimizer:
+  type: 'adamw'
+  lr: 0.001
+  weight_decay: 0.01
+```
+
+### RMSprop
+```yaml
+optimizer:
+  type: 'rmsprop'
+  lr: 0.001
+  alpha: 0.99
+  momentum: 0.9
+```
+
+## Adding Custom Scheduler
+
+Similar process in `get_scheduler()`:
 
 ```python
-# Random crop
-T.RandomResizedCrop(224, scale=(0.8, 1.0))
-
-# Gaussian blur
-T.GaussianBlur(kernel_size=3)
-
-# Random erasing
-T.RandomErasing(p=0.5)
-
-# Random perspective
-T.RandomPerspective(distortion_scale=0.2)
-
-# Grayscale
-T.RandomGrayscale(p=0.1)
+def get_scheduler(optimizer, config):
+    sched_config = config['scheduler']
+    sched_type = sched_config.get('type', 'step')  # NEW
+    
+    if sched_type == 'step':
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer,
+            step_size=sched_config['step_size'],
+            gamma=sched_config['gamma']
+        )
+    
+    elif sched_type == 'cosine':  # NEW
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=sched_config['T_max']
+        )
+    
+    return scheduler
 ```
 
 ## Best Practices
 
-1. Only apply to training split
-2. Test impact on validation accuracy
-3. Don't over-augment
-4. Match domain (e.g., no flip for text)
-5. Document why added
+1. Test on validation set
+2. Adjust LR for different optimizers
+3. Save optimizer state in checkpoints
+4. Document optimizer choice
 
 ## Related
 
-- [Transform Configuration](../configuration/transforms.md)
-- [Dataset Module](../architecture/ml-src-modules.md#datasetpy)
-EOF4
+- [Optimizer Configuration](../configuration/optimizer-scheduler.md)
+- [Optimizer Module](../architecture/ml-src-modules.md#optimizerpy)
+EOF5

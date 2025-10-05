@@ -7,21 +7,22 @@ import argparse
 import os
 import shutil
 import subprocess
+
 import torch
 import torchvision
 import yaml
-from torch.utils.tensorboard import SummaryWriter
 from loguru import logger
 from PIL import Image
+from torch.utils.tensorboard import SummaryWriter
 
-from ml_src.dataset import get_datasets, get_class_names
-from ml_src.loader import get_dataloaders
-from ml_src.network import get_model, load_model
+from ml_src.core.dataset import get_class_names, get_datasets
+from ml_src.core.loader import get_dataloaders
+from ml_src.core.network import get_model, load_model
 
 
 def load_config(config_path):
     """Load configuration from YAML file."""
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
     return config
 
@@ -248,7 +249,7 @@ def visualize_predictions(
     logger.success(
         f"Logged {len(images)} predictions to TensorBoard (Accuracy: {accuracy:.2%})"
     )
-    logger.info(f"Green border = Correct prediction, Red border = Incorrect prediction")
+    logger.info("Green border = Correct prediction, Red border = Incorrect prediction")
     logger.info(f"View in TensorBoard: tensorboard --logdir {run_dir}/tensorboard")
 
 

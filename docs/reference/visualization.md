@@ -1,12 +1,12 @@
 # Visualization Reference
 
-Complete reference for `visualise.py` and TensorBoard visualization.
+Complete reference for `ml-visualise` CLI command and TensorBoard visualization.
 
-## visualise.py Script
+## ml-visualise CLI Command
 
 ### Overview
 
-The `visualise.py` script provides easy-to-use TensorBoard visualization for:
+The `ml-visualise` command provides easy-to-use TensorBoard visualization for:
 - Dataset samples
 - Model predictions
 - TensorBoard server management
@@ -15,7 +15,7 @@ The `visualise.py` script provides easy-to-use TensorBoard visualization for:
 ### Command-line Interface
 
 ```bash
-python visualise.py --mode <MODE> [OPTIONS]
+ml-visualise --mode <MODE> [OPTIONS]
 ```
 
 ### Modes
@@ -25,7 +25,7 @@ python visualise.py --mode <MODE> [OPTIONS]
 Start TensorBoard server for viewing logs.
 
 ```bash
-python visualise.py --mode launch --run_dir runs/base [--port 6006]
+ml-visualise --mode launch --run_dir runs/base [--port 6006]
 ```
 
 **Arguments:**
@@ -35,10 +35,10 @@ python visualise.py --mode launch --run_dir runs/base [--port 6006]
 **Example:**
 ```bash
 # Default port
-python visualise.py --mode launch --run_dir runs/base
+ml-visualise --mode launch --run_dir runs/base
 
 # Custom port
-python visualise.py --mode launch --run_dir runs/batch_32 --port 6007
+ml-visualise --mode launch --run_dir runs/batch_32 --port 6007
 ```
 
 #### 2. Samples Mode
@@ -46,7 +46,7 @@ python visualise.py --mode launch --run_dir runs/batch_32 --port 6007
 Visualize dataset images in TensorBoard.
 
 ```bash
-python visualise.py --mode samples --run_dir runs/base \
+ml-visualise --mode samples --run_dir runs/base \
   [--split train|val|test] [--num_images 16]
 ```
 
@@ -58,13 +58,13 @@ python visualise.py --mode samples --run_dir runs/base \
 **Example:**
 ```bash
 # Visualize 16 validation samples
-python visualise.py --mode samples --run_dir runs/base
+ml-visualise --mode samples --run_dir runs/base
 
 # Visualize 32 training samples
-python visualise.py --mode samples --run_dir runs/base --split train --num_images 32
+ml-visualise --mode samples --run_dir runs/base --split train --num_images 32
 
 # Visualize test samples
-python visualise.py --mode samples --run_dir runs/base --split test --num_images 8
+ml-visualise --mode samples --run_dir runs/base --split test --num_images 8
 ```
 
 **TensorBoard Output:**
@@ -76,7 +76,7 @@ python visualise.py --mode samples --run_dir runs/base --split test --num_images
 Visualize model predictions with colored borders.
 
 ```bash
-python visualise.py --mode predictions --run_dir runs/base \
+ml-visualise --mode predictions --run_dir runs/base \
   [--checkpoint best.pt] [--split val] [--num_images 16]
 ```
 
@@ -89,13 +89,13 @@ python visualise.py --mode predictions --run_dir runs/base \
 **Example:**
 ```bash
 # Predictions with best model on validation set
-python visualise.py --mode predictions --run_dir runs/base
+ml-visualise --mode predictions --run_dir runs/base
 
 # Predictions on test set
-python visualise.py --mode predictions --run_dir runs/base --split test
+ml-visualise --mode predictions --run_dir runs/base --split test
 
 # Use last checkpoint instead
-python visualise.py --mode predictions --run_dir runs/base --checkpoint last.pt --num_images 32
+ml-visualise --mode predictions --run_dir runs/base --checkpoint last.pt --num_images 32
 ```
 
 **Color Coding:**
@@ -112,7 +112,7 @@ python visualise.py --mode predictions --run_dir runs/base --checkpoint last.pt 
 Remove TensorBoard logs to start fresh.
 
 ```bash
-python visualise.py --mode clean [--run_dir runs/base]
+ml-visualise --mode clean [--run_dir runs/base]
 ```
 
 **Arguments:**
@@ -121,10 +121,10 @@ python visualise.py --mode clean [--run_dir runs/base]
 **Example:**
 ```bash
 # Clean all TensorBoard logs
-python visualise.py --mode clean
+ml-visualise --mode clean
 
 # Clean specific run
-python visualise.py --mode clean --run_dir runs/base
+ml-visualise --mode clean --run_dir runs/base
 ```
 
 **What Gets Removed:**
@@ -142,35 +142,35 @@ python visualise.py --mode clean --run_dir runs/base
 
 ```bash
 # 1. Train a model
-python train.py --batch_size 32 --lr 0.01 --num_epochs 50
+ml-train --batch_size 32 --lr 0.01 --num_epochs 50
 
 # 2. Visualize training data
-python visualise.py --mode samples --run_dir runs/batch_32_lr_0.01 --split train --num_images 32
+ml-visualise --mode samples --run_dir runs/batch_32_lr_0.01 --split train --num_images 32
 
 # 3. Visualize validation predictions
-python visualise.py --mode predictions --run_dir runs/batch_32_lr_0.01 --split val
+ml-visualise --mode predictions --run_dir runs/batch_32_lr_0.01 --split val
 
 # 4. Visualize test predictions
-python visualise.py --mode predictions --run_dir runs/batch_32_lr_0.01 --split test
+ml-visualise --mode predictions --run_dir runs/batch_32_lr_0.01 --split test
 
 # 5. Launch TensorBoard
-python visualise.py --mode launch --run_dir runs/batch_32_lr_0.01
+ml-visualise --mode launch --run_dir runs/batch_32_lr_0.01
 ```
 
 #### Compare Multiple Checkpoints
 
 ```bash
 # Visualize best checkpoint
-python visualise.py --mode predictions --run_dir runs/base --checkpoint best.pt
+ml-visualise --mode predictions --run_dir runs/base --checkpoint best.pt
 
 # Clean logs
-python visualise.py --mode clean --run_dir runs/base
+ml-visualise --mode clean --run_dir runs/base
 
 # Visualize last checkpoint
-python visualise.py --mode predictions --run_dir runs/base --checkpoint last.pt
+ml-visualise --mode predictions --run_dir runs/base --checkpoint last.pt
 
 # Launch and compare in TensorBoard
-python visualise.py --mode launch --run_dir runs/base
+ml-visualise --mode launch --run_dir runs/base
 ```
 
 ## TensorBoard Interface
@@ -233,7 +233,7 @@ Prediction visualization adds 5-pixel borders:
 
 ```bash
 # Visualize training data
-python visualise.py --mode samples --run_dir runs/base --split train --num_images 32
+ml-visualise --mode samples --run_dir runs/base --split train --num_images 32
 
 # Check if images look correct
 # - Are transformations applied correctly?
@@ -245,7 +245,7 @@ python visualise.py --mode samples --run_dir runs/base --split train --num_image
 
 ```bash
 # Visualize predictions
-python visualise.py --mode predictions --run_dir runs/base --split val --num_images 32
+ml-visualise --mode predictions --run_dir runs/base --split val --num_images 32
 
 # In TensorBoard, check:
 # - Which images are misclassified (red borders)?
@@ -257,10 +257,10 @@ python visualise.py --mode predictions --run_dir runs/base --split val --num_ima
 
 ```bash
 # Visualize predictions for run 1
-python visualise.py --mode predictions --run_dir runs/base
+ml-visualise --mode predictions --run_dir runs/base
 
 # Visualize predictions for run 2
-python visualise.py --mode predictions --run_dir runs/lr_0.01
+ml-visualise --mode predictions --run_dir runs/lr_0.01
 
 # Launch TensorBoard for comparison
 tensorboard --logdir runs/
@@ -270,14 +270,14 @@ tensorboard --logdir runs/
 
 ```bash
 # Remove all old visualizations
-python visualise.py --mode clean
+ml-visualise --mode clean
 
 # Generate fresh visualizations
-python visualise.py --mode samples --run_dir runs/base --split train
-python visualise.py --mode predictions --run_dir runs/base --split val
+ml-visualise --mode samples --run_dir runs/base --split train
+ml-visualise --mode predictions --run_dir runs/base --split val
 
 # View updated logs
-python visualise.py --mode launch --run_dir runs/base
+ml-visualise --mode launch --run_dir runs/base
 ```
 
 ## Troubleshooting
@@ -320,7 +320,7 @@ pip install tensorboard
 **Solution:**
 ```bash
 # Use different port
-python visualise.py --mode launch --run_dir runs/base --port 6007
+ml-visualise --mode launch --run_dir runs/base --port 6007
 ```
 
 ### Clean Doesn't Work
@@ -330,7 +330,7 @@ python visualise.py --mode launch --run_dir runs/base --port 6007
 **Solutions:**
 1. Verify clean completed:
    ```bash
-   python visualise.py --mode clean --run_dir runs/base
+   ml-visualise --mode clean --run_dir runs/base
    ```
 2. Check tensorboard directory removed:
    ```bash
@@ -342,7 +342,7 @@ python visualise.py --mode launch --run_dir runs/base --port 6007
 
 ### Dependencies
 
-Required packages (already in requirements.txt):
+Required packages (already in pyproject.toml):
 - `torch` - Core framework
 - `torchvision` - Image utilities
 - `tensorboard` - Visualization backend
@@ -393,7 +393,7 @@ Training automatically logs to TensorBoard:
 
 ### Additional Visualization
 
-Use `visualise.py` to add:
+Use `ml-visualise` to add:
 - Dataset sample views
 - Prediction visualizations with color coding
 - Multiple checkpoints for comparison
@@ -402,20 +402,20 @@ Use `visualise.py` to add:
 
 ```bash
 # Train
-python train.py --batch_size 32 --num_epochs 50
+ml-train --batch_size 32 --num_epochs 50
 
 # Add visualizations
-python visualise.py --mode samples --run_dir runs/batch_32
-python visualise.py --mode predictions --run_dir runs/batch_32
+ml-visualise --mode samples --run_dir runs/batch_32
+ml-visualise --mode predictions --run_dir runs/batch_32
 
 # View everything together
-python visualise.py --mode launch --run_dir runs/batch_32
+ml-visualise --mode launch --run_dir runs/batch_32
 ```
 
 Now TensorBoard shows:
 - Training curves (from training)
-- Dataset samples (from visualise.py samples mode)
-- Prediction visualizations (from visualise.py predictions mode)
+- Dataset samples (from ml-visualise samples mode)
+- Prediction visualizations (from ml-visualise predictions mode)
 - Confusion matrices (from training)
 
 ## Related Documentation

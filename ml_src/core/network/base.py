@@ -5,8 +5,8 @@ with automatic detection and replacement of the final classification layer.
 """
 
 import torch.nn as nn
-from torchvision import models
 from loguru import logger
+from torchvision import models
 
 
 def get_base_model(architecture, num_classes, weights=None, device="cpu"):
@@ -52,11 +52,11 @@ def get_base_model(architecture, num_classes, weights=None, device="cpu"):
     # Get model constructor function from torchvision.models
     try:
         model_fn = getattr(models, architecture)
-    except AttributeError:
+    except AttributeError as err:
         raise ValueError(
             f"Architecture '{architecture}' not found in torchvision.models. "
             f"Available models: {[name for name in dir(models) if name.islower() and not name.startswith('_')]}"
-        )
+        ) from err
 
     # Load model with optional pretrained weights
     if weights == "DEFAULT":

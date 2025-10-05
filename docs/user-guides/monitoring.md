@@ -10,25 +10,22 @@ Monitor training progress with TensorBoard and logs.
 # View all runs
 tensorboard --logdir runs/
 
-# View specific run
-tensorboard --logdir runs/base/tensorboard
+runs/hymenoptera_base_fold_0/tensorboard
 
 # Specify port
-tensorboard --logdir runs/base/tensorboard --port 6007
+tensorboard --logdir runs/hymenoptera_base_fold_0
 ```
 
 Open http://localhost:6006 in your browser.
 
-### Using visualise.py
+### Using ml-visualise
 
-The `visualise.py` script provides easy TensorBoard management:
+The `ml-visualise` command provides easy TensorBoard management:
 
 ```bash
-# Launch TensorBoard for a specific run
-python visualise.py --mode launch --run_dir runs/base
-
+runs/hymenoptera_base_fold_0
 # Launch on custom port
-python visualise.py --mode launch --run_dir runs/base --port 6007
+runs/hymenoptera_base_fold_0
 ```
 
 ## What Gets Logged
@@ -60,13 +57,13 @@ View sample images from your dataset:
 
 ```bash
 # Visualize 16 training samples
-python visualise.py --mode samples --run_dir runs/base --split train --num_images 16
+ml-visualise --mode samples --run_dir runs/hymenoptera_base_fold_0 --split train --num_images 16
 
 # Visualize validation samples
-python visualise.py --mode samples --run_dir runs/base --split val --num_images 32
+ml-visualise --mode samples --run_dir runs/hymenoptera_base_fold_0 --split val --num_images 32
 
 # Visualize test samples
-python visualise.py --mode samples --run_dir runs/base --split test --num_images 8
+ml-visualise --mode runs/hymenoptera_base_fold_0 --num_images 8
 ```
 
 This creates image grids in TensorBoard showing:
@@ -79,13 +76,13 @@ Visualize model predictions with colored borders:
 
 ```bash
 # Visualize predictions on validation set using best checkpoint
-python visualise.py --mode predictions --run_dir runs/base --split val --checkpoint best.pt
+runs/hymenoptera_base_fold_0
 
 # Visualize predictions on test set
-python visualise.py --mode predictions --run_dir runs/base --split test --checkpoint best.pt --num_images 32
+ml-visualise --mode predictions --run_dir runs/base --split test --checkpoint best.pt --num_images 32
 
 # Use last checkpoint instead
-python visualise.py --mode predictions --run_dir runs/base --split val --checkpoint last.pt
+ml-visualise --mode predictions --run_dir runs/base --split val --checkpoint last.pt
 ```
 
 **Color coding:**
@@ -102,10 +99,10 @@ Remove TensorBoard logs to start fresh:
 
 ```bash
 # Clean all runs
-python visualise.py --mode clean
+ml-visualise --mode clean
 
 # Clean specific run
-python visualise.py --mode clean --run_dir runs/base
+ml-visualise --mode clean --run_dir runs/base
 ```
 
 This removes only TensorBoard logs, preserving:
@@ -183,10 +180,10 @@ If new data doesn't appear:
 
 ```bash
 # Terminal 1: Start training
-python train.py --num_epochs 100
+ml-train --num_epochs 100
 
 # Terminal 2: Launch TensorBoard
-python visualise.py --mode launch --run_dir runs/base
+ml-visualise --mode launch --run_dir runs/base
 ```
 
 Watch metrics update in real-time as training progresses.
@@ -197,16 +194,16 @@ Watch metrics update in real-time as training progresses.
 
 ```bash
 # 1. Train model
-python train.py --batch_size 32 --num_epochs 50
+ml-train --batch_size 32 --num_epochs 50
 
 # 2. Visualize training samples
-python visualise.py --mode samples --run_dir runs/batch_32 --split train
+ml-visualise --mode samples --run_dir runs/batch_32 --split train
 
 # 3. Visualize validation predictions
-python visualise.py --mode predictions --run_dir runs/batch_32 --split val
+ml-visualise --mode predictions --run_dir runs/batch_32 --split val
 
 # 4. Launch TensorBoard
-python visualise.py --mode launch --run_dir runs/batch_32
+ml-visualise --mode launch --run_dir runs/batch_32
 ```
 
 ### After Training
@@ -219,7 +216,7 @@ tensorboard --logdir runs/base/tensorboard
 cat runs/base/summary.txt
 
 # Visualize predictions
-python visualise.py --mode predictions --run_dir runs/base --split test
+ml-visualise --mode predictions --run_dir runs/base --split test
 ```
 
 ## Related

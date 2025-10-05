@@ -32,7 +32,7 @@ training:
 ### CLI Override
 
 ```bash
-python train.py --batch_size 32
+ml-train --batch_size 32
 ```
 
 ### Trade-offs
@@ -100,10 +100,10 @@ python train.py --batch_size 32
 3. **Find maximum batch size**
    ```bash
    # Start small, then double until OOM
-   python train.py --batch_size 4
-   python train.py --batch_size 8
-   python train.py --batch_size 16
-   python train.py --batch_size 32  # OOM! Use 16
+   ml-train --batch_size 4
+   ml-train --batch_size 8
+   ml-train --batch_size 16
+   ml-train --batch_size 32  # OOM! Use 16
    ```
 
 4. **Monitor GPU memory**
@@ -150,7 +150,7 @@ training:
 ### CLI Override
 
 ```bash
-python train.py --num_epochs 50
+ml-train --num_epochs 50
 ```
 
 ### Typical Values
@@ -211,10 +211,10 @@ Epoch 25: train_loss=0.054, val_loss=0.162  # Overfitting! (stop)
 3. **Resume from checkpoint**
    ```bash
    # Train 25 epochs
-   python train.py --num_epochs 25
-   
+   ml-train --num_epochs 25
+
    # If not converged, resume and train 25 more
-   python train.py --resume runs/base/last.pt --num_epochs 50
+   ml-train --resume runs/base/last.pt --num_epochs 50
    ```
 
 4. **Monitor TensorBoard**
@@ -271,16 +271,16 @@ nvidia-smi
 **Use specific GPU:**
 ```bash
 # Use second GPU
-python train.py --device cuda:1
+ml-train --device cuda:1
 ```
 
 **Set GPU via environment variable:**
 ```bash
 # Make only GPU 1 visible
-CUDA_VISIBLE_DEVICES=1 python train.py
+CUDA_VISIBLE_DEVICES=1 ml-train
 
 # Make GPUs 0 and 2 visible
-CUDA_VISIBLE_DEVICES=0,2 python train.py
+CUDA_VISIBLE_DEVICES=0,2 ml-train
 ```
 
 ### When to Use CPU

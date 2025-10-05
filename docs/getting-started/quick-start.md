@@ -7,7 +7,8 @@ Get up and running with your first training run in 5 minutes!
 ## Prerequisites
 
 - ✅ Python 3.8+ installed
-- ✅ Dependencies installed (`pip install -r requirements.txt`)
+- ✅ Package installed (`pip install -e .`)
+- ✅ CLI commands available globally
 - ✅ Dataset organized ([see Data Preparation](data-preparation.md))
 
 ---
@@ -39,7 +40,7 @@ ls data/hymenoptera_data/
 
 ```bash
 # Train for 3 epochs (quick test) on fold 0
-python train.py --fold 0 --num_epochs 3
+ml-train --fold 0 --num_epochs 3
 ```
 
 **Expected output:**
@@ -108,7 +109,7 @@ data/my_dataset/
 ### Step 2: Generate Cross-Validation Splits
 
 ```bash
-python splitting.py \
+ml-split \
   --raw_data data/my_dataset/raw \
   --output data/my_dataset/splits \
   --folds 5 \
@@ -143,11 +144,11 @@ model:
 
 ```bash
 # Train fold 0
-python train.py --fold 0
+ml-train --fold 0
 
 # Train other folds (for cross-validation)
-python train.py --fold 1
-python train.py --fold 2
+ml-train --fold 1
+ml-train --fold 2
 ```
 
 ---
@@ -158,43 +159,43 @@ python train.py --fold 2
 
 ```bash
 # Quick test (5 epochs)
-python train.py --fold 0 --num_epochs 5
+ml-train --fold 0 --num_epochs 5
 
 # Full training (50 epochs)
-python train.py --fold 0 --num_epochs 50
+ml-train --fold 0 --num_epochs 50
 ```
 
 ### Change Batch Size
 
 ```bash
 # Smaller batch (if GPU memory limited)
-python train.py --fold 0 --batch_size 16
+ml-train --fold 0 --batch_size 16
 
 # Larger batch (if you have powerful GPU)
-python train.py --fold 0 --batch_size 64
+ml-train --fold 0 --batch_size 64
 ```
 
 ### Adjust Learning Rate
 
 ```bash
 # Lower learning rate (more stable)
-python train.py --fold 0 --lr 0.0001
+ml-train --fold 0 --lr 0.0001
 
 # Higher learning rate (faster convergence)
-python train.py --fold 0 --lr 0.01
+ml-train --fold 0 --lr 0.01
 ```
 
 ### Combine Options
 
 ```bash
-python train.py --fold 0 --batch_size 32 --lr 0.01 --num_epochs 50
+ml-train --fold 0 --batch_size 32 --lr 0.01 --num_epochs 50
 ```
 
 ### Change Dataset
 
 ```bash
 # Train on different dataset
-python train.py --dataset_name custom --data_dir data/custom_dataset --fold 0
+ml-train --dataset_name custom --data_dir data/custom_dataset --fold 0
 ```
 
 ---
@@ -205,10 +206,10 @@ If training was interrupted:
 
 ```bash
 # Resume from last checkpoint
-python train.py --resume runs/hymenoptera_base_fold_0/last.pt
+ml-train --resume runs/hymenoptera_base_fold_0/last.pt
 
 # Resume and train more epochs
-python train.py --resume runs/hymenoptera_base_fold_0/last.pt --num_epochs 50
+ml-train --resume runs/hymenoptera_base_fold_0/last.pt --num_epochs 50
 ```
 
 ---
@@ -219,7 +220,7 @@ After training, evaluate on test data:
 
 ```bash
 # Use best model
-python inference.py --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
+ml-inference --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
 ```
 
 **Expected output:**
@@ -286,23 +287,23 @@ watch -n 1 nvidia-smi
 ```bash
 # === DATA PREPARATION ===
 # Generate CV splits (one time per dataset)
-python splitting.py --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
+ml-split --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
 
 # === TRAINING ===
-python train.py --fold 0                                 # Basic training
-python train.py --fold 0 --num_epochs 50                 # More epochs
-python train.py --fold 0 --batch_size 32                 # Different batch size
-python train.py --fold 0 --lr 0.01                       # Different learning rate
-python train.py --dataset_name custom --data_dir data/custom --fold 0  # Custom dataset
-python train.py --resume runs/hymenoptera_base_fold_0/last.pt  # Resume training
+ml-train --fold 0                                 # Basic training
+ml-train --fold 0 --num_epochs 50                 # More epochs
+ml-train --fold 0 --batch_size 32                 # Different batch size
+ml-train --fold 0 --lr 0.01                       # Different learning rate
+ml-train --dataset_name custom --data_dir data/custom --fold 0  # Custom dataset
+ml-train --resume runs/hymenoptera_base_fold_0/last.pt  # Resume training
 
 # Train all folds (cross-validation)
 for fold in {0..4}; do
-  python train.py --fold $fold --batch_size 32 --lr 0.01
+  ml-train --fold $fold --batch_size 32 --lr 0.01
 done
 
 # === INFERENCE ===
-python inference.py --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
+ml-inference --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
 
 # === MONITORING ===
 tensorboard --logdir runs/                              # View all runs
@@ -323,7 +324,7 @@ ls runs/                                                # List training runs
 
 1. **Quick test** (verify everything works):
    ```bash
-   python train.py --fold 0 --num_epochs 3
+   ml-train --fold 0 --num_epochs 3
    ```
 
 2. **Check results** in TensorBoard:
@@ -333,22 +334,22 @@ ls runs/                                                # List training runs
 
 3. **Tune hyperparameters** (try different values on fold 0):
    ```bash
-   python train.py --fold 0 --lr 0.001 --batch_size 32 --num_epochs 20
-   python train.py --fold 0 --lr 0.01 --batch_size 32 --num_epochs 20
-   python train.py --fold 0 --lr 0.01 --batch_size 64 --num_epochs 20
+   ml-train --fold 0 --lr 0.001 --batch_size 32 --num_epochs 20
+   ml-train --fold 0 --lr 0.01 --batch_size 32 --num_epochs 20
+   ml-train --fold 0 --lr 0.01 --batch_size 64 --num_epochs 20
    ```
 
 4. **Full training** (with best hyperparams on all folds):
    ```bash
    for fold in {0..4}; do
-     python train.py --fold $fold --lr 0.01 --batch_size 64 --num_epochs 100
+     ml-train --fold $fold --lr 0.01 --batch_size 64 --num_epochs 100
    done
    ```
 
 5. **Evaluate** on test sets:
    ```bash
    for fold in {0..4}; do
-     python inference.py --run_dir runs/my_dataset_lr_0.01_batch_64_epochs_100_fold_$fold --checkpoint best.pt
+     ml-inference --run_dir runs/my_dataset_lr_0.01_batch_64_epochs_100_fold_$fold --checkpoint best.pt
    done
    ```
 
@@ -390,20 +391,20 @@ runs/
 
 ```bash
 # Reduce batch size
-python train.py --fold 0 --batch_size 8
+ml-train --fold 0 --batch_size 8
 
 # Or train on CPU
-python train.py --fold 0 --device cpu --batch_size 4
+ml-train --fold 0 --device cpu --batch_size 4
 ```
 
 ### Training Too Slow
 
 ```bash
 # Increase workers (if CPU has many cores)
-python train.py --fold 0 --num_workers 8
+ml-train --fold 0 --num_workers 8
 
 # Use larger batch size (if GPU has memory)
-python train.py --fold 0 --batch_size 64
+ml-train --fold 0 --batch_size 64
 ```
 
 ### CUDA Not Available
@@ -413,7 +414,7 @@ python train.py --fold 0 --batch_size 64
 python -c "import torch; print(torch.cuda.is_available())"
 
 # If False, train on CPU
-python train.py --fold 0 --device cpu
+ml-train --fold 0 --device cpu
 ```
 
 ### Index File Not Found
@@ -424,7 +425,7 @@ FileNotFoundError: Index file not found: data/my_dataset/splits/fold_0_train.txt
 
 **Solution:** Generate splits first:
 ```bash
-python splitting.py --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
+ml-split --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
 ```
 
 ### Data Loading Error
@@ -445,7 +446,7 @@ ls -R data/my_dataset/
 
 - **Data Preparation:** [Data Preparation Guide](data-preparation.md)
 - **Training Guide:** [Training Workflows](../user-guides/training.md)
-- **Configuration:** [Configuration Overview](../configuration/overview.md)
+- **Configuration:** [Configuration Overview](../configuration/README.md)
 - **Hyperparameter Tuning:** [Tuning Guide](../user-guides/hyperparameter-tuning.md)
 - **Model Selection:** [Model Configuration](../configuration/models.md)
 
@@ -461,17 +462,17 @@ model:
 
 Then train:
 ```bash
-python train.py --fold 0
+ml-train --fold 0
 ```
 
 ### Experiment with Hyperparameters
 
 ```bash
 # Systematic search on fold 0
-python train.py --fold 0 --lr 0.001 --batch_size 16 --num_epochs 20
-python train.py --fold 0 --lr 0.001 --batch_size 32 --num_epochs 20
-python train.py --fold 0 --lr 0.01 --batch_size 16 --num_epochs 20
-python train.py --fold 0 --lr 0.01 --batch_size 32 --num_epochs 20
+ml-train --fold 0 --lr 0.001 --batch_size 16 --num_epochs 20
+ml-train --fold 0 --lr 0.001 --batch_size 32 --num_epochs 20
+ml-train --fold 0 --lr 0.01 --batch_size 16 --num_epochs 20
+ml-train --fold 0 --lr 0.01 --batch_size 32 --num_epochs 20
 
 # Compare in TensorBoard
 tensorboard --logdir runs/
@@ -523,18 +524,18 @@ if torch.cuda.is_available():
 
 ```bash
 # === SETUP (one time per dataset) ===
-python splitting.py --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
+ml-split --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
 
 # === TRAINING ===
-python train.py --fold 0                         # Default
-python train.py --fold 0 --num_epochs 50         # Custom epochs
-python train.py --fold 0 --batch_size 32 --lr 0.01  # Custom params
+ml-train --fold 0                         # Default
+ml-train --fold 0 --num_epochs 50         # Custom epochs
+ml-train --fold 0 --batch_size 32 --lr 0.01  # Custom params
 
 # === CROSS-VALIDATION ===
-for fold in {0..4}; do python train.py --fold $fold; done
+for fold in {0..4}; do ml-train --fold $fold; done
 
 # === INFERENCE ===
-python inference.py --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
+ml-inference --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
 
 # === MONITORING ===
 tensorboard --logdir runs/
@@ -542,4 +543,4 @@ tail -f runs/hymenoptera_base_fold_0/logs/train.log
 nvidia-smi
 ```
 
-**Happy training!** 🚀
+**Happy training!**

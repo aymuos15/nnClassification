@@ -5,30 +5,31 @@ Inference script for evaluating trained models.
 
 import argparse
 import os
+
 import torch
 import torch.backends.cudnn as cudnn
 import yaml
-from torch.utils.tensorboard import SummaryWriter
 from loguru import logger
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 from sklearn.metrics import classification_report
+from torch.utils.tensorboard import SummaryWriter
 
-from ml_src.dataset import get_datasets, get_class_names
-from ml_src.loader import get_dataloaders, get_dataset_sizes
-from ml_src.network import get_model, load_model
-from ml_src.test import test_model
-from ml_src.metrics import (
-    save_classification_report,
-    log_confusion_matrix_to_tensorboard,
+from ml_src.core.dataset import get_class_names, get_datasets
+from ml_src.core.loader import get_dataloaders, get_dataset_sizes
+from ml_src.core.metrics import (
     get_classification_report_str,
+    log_confusion_matrix_to_tensorboard,
+    save_classification_report,
 )
+from ml_src.core.network import get_model, load_model
+from ml_src.core.test import test_model
 
 
 def load_config(config_path):
     """Load configuration from YAML file."""
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
     return config
 
@@ -62,34 +63,56 @@ def setup_logging(run_dir):
 def main():
     """Main function for inference."""
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description="Run inference on trained model")
-    parser.add_argument(
-        "--run_dir",
-        type=str,
-        default="runs/base",
-        help="Path to run directory (default: runs/base)",
+    parser = argparse.ArgumentParser(
+        description="Run inference on trained model",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run inference with best checkpoint
+  ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt
+
+  # Run inference with last checkpoint
+  ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/last.pt
+
+  # Override data directory
+  ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt --data_dir data/new_dataset
+        """,
     )
     parser.add_argument(
-        "--checkpoint",
+        "--checkpoint_path",
         type=str,
-        default="best.pt",
-        help="Checkpoint to use: best.pt or last.pt (default: best.pt)",
+        required=True,
+        help="Path to checkpoint file (e.g., runs/base/weights/best.pt)",
     )
     parser.add_argument("--data_dir", type=str, help="Override data directory")
 
     args = parser.parse_args()
 
+    # Validate checkpoint exists
+    if not os.path.exists(args.checkpoint_path):
+        logger.error(f"Checkpoint not found: {args.checkpoint_path}")
+        return
+
+    # Auto-extract run_dir from checkpoint path
+    # Expected format: runs/run_name/weights/checkpoint.pt
+    checkpoint_path = os.path.abspath(args.checkpoint_path)
+    run_dir = os.path.dirname(os.path.dirname(checkpoint_path))  # Go up 2 levels
+
+    logger.info(f"Checkpoint: {args.checkpoint_path}")
+    logger.info(f"Run directory: {run_dir}")
+
     # Load config from run directory
-    config_path = os.path.join(args.run_dir, "config.yaml")
+    config_path = os.path.join(run_dir, "config.yaml")
     if not os.path.exists(config_path):
-        logger.error(f"config.yaml not found in {args.run_dir}")
-        logger.error("Please specify a valid run directory with --run_dir")
+        logger.error(f"config.yaml not found in {run_dir}")
+        logger.error(f"Expected path: {config_path}")
+        logger.error("Make sure checkpoint path follows format: runs/run_name/weights/checkpoint.pt")
         return
 
     config = load_config(config_path)
 
     # Setup logging
-    setup_logging(args.run_dir)
+    setup_logging(run_dir)
 
     logger.info(f"Loaded config from {config_path}")
 
@@ -126,14 +149,9 @@ def main():
     logger.info("Creating model...")
     model = get_model(config, device)
 
-    # Load checkpoint
-    checkpoint_path = os.path.join(args.run_dir, "weights", args.checkpoint)
-    if not os.path.exists(checkpoint_path):
-        logger.error(f"Checkpoint {checkpoint_path} not found")
-        return
-
-    logger.info(f"Loading checkpoint from {checkpoint_path}")
-    model = load_model(model, checkpoint_path, device)
+    # Load checkpoint (already validated at the beginning)
+    logger.info(f"Loading checkpoint from {args.checkpoint_path}")
+    model = load_model(model, args.checkpoint_path, device)
 
     # Run inference
     logger.info("=" * 50)
@@ -160,7 +178,7 @@ def main():
     test_preds = [class_to_idx[pred_label] for _, pred_label, _ in per_sample_results]
 
     # Initialize TensorBoard writer
-    tensorboard_dir = os.path.join(args.run_dir, "tensorboard")
+    tensorboard_dir = os.path.join(run_dir, "tensorboard")
     writer = SummaryWriter(tensorboard_dir)
     logger.info(f"TensorBoard logs: {tensorboard_dir}")
 
@@ -184,7 +202,7 @@ def main():
         test_labels,
         test_preds,
         class_names,
-        os.path.join(args.run_dir, "logs", "classification_report_test.txt"),
+        os.path.join(run_dir, "logs", "classification_report_test.txt"),
     )
 
     # Close TensorBoard writer
@@ -224,8 +242,8 @@ def main():
     summary_table.add_column("Metric", style="cyan", width=20)
     summary_table.add_column("Value", style="green", width=15)
 
-    summary_table.add_row("Run Directory", args.run_dir)
-    summary_table.add_row("Checkpoint", args.checkpoint)
+    summary_table.add_row("Run Directory", run_dir)
+    summary_table.add_row("Checkpoint", os.path.basename(args.checkpoint_path))
     summary_table.add_row("Model", "ResNet18")
     summary_table.add_row("Test Samples", str(dataset_sizes["test"]))
     summary_table.add_row("Mean Accuracy", f"{test_acc:.4f}")
@@ -239,8 +257,8 @@ def main():
 
     # Remind user about TensorBoard
     console.print("\n")
-    console.print(f"[bold green]View test metrics in TensorBoard:[/bold green]")
-    console.print(f"  tensorboard --logdir {args.run_dir}/tensorboard")
+    console.print("[bold green]View test metrics in TensorBoard:[/bold green]")
+    console.print(f"  tensorboard --logdir {run_dir}/tensorboard")
     console.print("\n")
 
 

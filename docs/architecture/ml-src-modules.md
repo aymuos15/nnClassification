@@ -6,9 +6,19 @@ Complete reference for all modules in the `ml_src/` package.
 
 ## Module Overview
 
+### CLI Scripts (`ml_src/cli/`)
+
+| Module | CLI Command | Purpose |
+|--------|-------------|---------|
+| `train.py` | `ml-train` | Main training workflow |
+| `inference.py` | `ml-inference` | Model evaluation and testing |
+| `splitting.py` | `ml-split` | Dataset splitting utility |
+| `visualise.py` | `ml-visualise` | TensorBoard visualization |
+
+### Core Modules (`ml_src/core/`)
+
 | Module | Purpose | Key Functions |
 |--------|---------|---------------|
-| `config.yaml` | Default configuration | All settings |
 | `checkpointing.py` | State persistence | save_checkpoint, load_checkpoint |
 | `dataset.py` | Data loading | get_datasets, get_transforms |
 | `loader.py` | DataLoader creation | get_dataloaders |
@@ -21,6 +31,12 @@ Complete reference for all modules in the `ml_src/` package.
 | `seeding.py` | Reproducibility | set_seed, seed_worker |
 | `test.py` | Evaluation | test_model |
 | `trainer.py` | Training loop | train_model |
+
+### Configuration
+
+| File | Purpose |
+|------|---------|
+| `config.yaml` | Default configuration with all hyperparameters and settings |
 
 ---
 
@@ -431,7 +447,7 @@ Collects all predictions for metrics.
 
 ## Related Documentation
 
-- [Architecture Overview](overview.md)
+- [Architecture Overview](README.md)
 - [Entry Points](entry-points.md)
 - [Data Flow](data-flow.md)
 - [Design Decisions](design-decisions.md)

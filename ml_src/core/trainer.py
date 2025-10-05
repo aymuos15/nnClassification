@@ -1,16 +1,18 @@
 """Training module for model training."""
 
-import time
 import os
+import time
+
 import torch
-from torch.utils.tensorboard import SummaryWriter
 from loguru import logger
-from ml_src.metrics import (
-    save_classification_report,
-    log_confusion_matrix_to_tensorboard,
+from torch.utils.tensorboard import SummaryWriter
+
+from ml_src.core.checkpointing import count_parameters, save_checkpoint, save_summary
+from ml_src.core.metrics import (
     get_classification_report_str,
+    log_confusion_matrix_to_tensorboard,
+    save_classification_report,
 )
-from ml_src.checkpointing import save_checkpoint, save_summary, count_parameters
 
 
 def collect_predictions(model, dataloader, device):

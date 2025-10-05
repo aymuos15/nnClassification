@@ -353,7 +353,7 @@ model:
 ls data/my_dataset/train/  # Should show 10 directories
 
 # 3. Train from scratch (old checkpoints won't work)
-python train.py
+ml-train
 ```
 
 ---

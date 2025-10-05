@@ -2,16 +2,32 @@
 
 Guide to running inference and evaluating trained models on test data.
 
-## Basic Inference
+## Automatic Testing
+
+**Note:** After training completes, the framework automatically evaluates the best model on the test set. Test results are saved to:
+- `runs/{run_name}/logs/classification_report_test.txt`
+- TensorBoard (confusion matrix, accuracy, classification report)
+
+**You typically don't need to run manual inference** unless you want to:
+- Re-evaluate a checkpoint on different data
+- Evaluate checkpoints from different runs
+- Generate predictions for analysis
+
+---
+
+## Manual Inference (Optional)
 
 ### Quick Start
 
 ```bash
 # Evaluate best model on test set
-python inference.py --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt
 
 # Evaluate latest checkpoint
-python inference.py --run_dir runs/hymenoptera_base_fold_0 --checkpoint last.pt
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/last.pt
+
+# Evaluate on different dataset
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt --data_dir data/new_dataset
 ```
 
 ### Expected Output
@@ -147,15 +163,12 @@ Override the dataset in config:
 
 ```bash
 # Use different test data
-python inference.py \
-  --run_dir runs/hymenoptera_base_fold_0 \
-  --checkpoint best.pt \
-  --data_dir data/external_test_set
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt --data_dir data/external_test_set
 ```
 
 **Note:** Custom test data must:
 - Follow same directory structure (`raw/` and `splits/`)
-- Have `fold_0_test.txt` (or matching fold number)
+- Have `test.txt` (single test file, same for all folds)
 - Contain same class names as training
 
 ### Evaluate Multiple Folds
@@ -165,9 +178,8 @@ Compare performance across all folds:
 ```bash
 # Evaluate all folds
 for fold in {0..4}; do
-  python inference.py \
-    --run_dir runs/hymenoptera_base_fold_$fold \
-    --checkpoint best.pt
+  ml-inference \
+    --checkpoint_path runs/hymenoptera_base_fold_$fold/weights/best.pt
 done
 
 # Average results across folds for final performance estimate
@@ -179,10 +191,10 @@ Compare best vs last checkpoint:
 
 ```bash
 # Evaluate best model
-python inference.py --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt
 
 # Evaluate latest checkpoint
-python inference.py --run_dir runs/hymenoptera_base_fold_0 --checkpoint last.pt
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/last.pt
 ```
 
 **Use case:** Check if training was still improving when it stopped.
@@ -428,13 +440,13 @@ Harmonic mean of precision and recall.
 ```bash
 # 1. Train all folds
 for fold in {0..4}; do
-  python train.py --fold $fold --batch_size 32 --lr 0.01 --num_epochs 100
+  ml-train --fold $fold --batch_size 32 --lr 0.01 --num_epochs 100
 done
 
 # 2. Evaluate all folds
 for fold in {0..4}; do
   echo "=== Fold $fold ==="
-  python inference.py \
+  ml-inference \
     --run_dir runs/hymenoptera_batch_32_lr_0.01_epochs_100_fold_$fold \
     --checkpoint best.pt
 done
@@ -450,7 +462,7 @@ tensorboard --logdir runs/
 
 ```bash
 # 1. Choose best fold based on test accuracy
-python inference.py --run_dir runs/hymenoptera_base_fold_3 --checkpoint best.pt
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_3/weights/best.pt
 # Suppose fold 3 has highest test accuracy: 93.5%
 
 # 2. Copy best model for deployment
@@ -485,6 +497,6 @@ echo "Model: ResNet18, Test Acc: 93.5%" > production/README.txt
 
 **Ready to evaluate?**
 ```bash
-python inference.py --run_dir runs/my_model_fold_0 --checkpoint best.pt
+ml-inference --checkpoint_path runs/my_model_fold_0/weights/best.pt
 tensorboard --logdir runs/
 ```

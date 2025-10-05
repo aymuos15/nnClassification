@@ -3,7 +3,7 @@
 import torch
 import torch.utils.data
 
-from ml_src.seeding import seed_worker
+from ml_src.core.seeding import seed_worker
 
 
 def get_dataloaders(datasets, config):

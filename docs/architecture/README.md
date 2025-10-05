@@ -36,34 +36,46 @@ The project is configured for the Hymenoptera dataset (ants vs bees classificati
 
 ```
 .
-├── train.py                    # Main training script (entry point)
-├── inference.py                # Inference/testing script (entry point)
-├── requirements.txt            # Python dependencies
+├── pyproject.toml              # Project configuration, CLI entry points, and dependencies
 │
 ├── ml_src/                     # Core ML package
 │   ├── __init__.py
 │   ├── config.yaml            # Base configuration file
 │   │
-│   ├── checkpointing.py       # Checkpoint save/load, training summaries
-│   ├── dataset.py             # Dataset creation and transforms
-│   ├── loader.py              # DataLoader creation
-│   ├── loss.py                # Loss functions
-│   ├── metrics.py             # Evaluation metrics (confusion matrix, reports)
-│   ├── optimizer.py           # Optimizers and learning rate schedulers
-│   ├── seeding.py             # Reproducibility utilities
-│   ├── test.py                # Testing/evaluation logic
-│   ├── trainer.py             # Training loop
+│   ├── cli/                   # Command-line interface scripts
+│   │   ├── __init__.py
+│   │   ├── init_config.py     # Config initialization (ml-init-config)
+│   │   ├── train.py           # Main training script (ml-train)
+│   │   ├── inference.py       # Inference/testing script (ml-inference)
+│   │   ├── splitting.py       # Dataset splitting utility (ml-split)
+│   │   └── visualise.py       # TensorBoard visualization (ml-visualise)
 │   │
-│   └── network/               # Model architectures package
-│       ├── __init__.py        # Main API (get_model, save_model, load_model)
-│       ├── base.py            # Flexible torchvision model loader
-│       └── custom.py          # Custom model architectures (SimpleCNN, TinyNet)
+│   └── core/                  # Core ML modules
+│       ├── __init__.py
+│       ├── checkpointing.py   # Checkpoint save/load, training summaries
+│       ├── dataset.py         # Dataset creation and transforms
+│       ├── loader.py          # DataLoader creation
+│       ├── loss.py            # Loss functions
+│       ├── metrics.py         # Evaluation metrics (confusion matrix, reports)
+│       ├── optimizer.py       # Optimizers and learning rate schedulers
+│       ├── seeding.py         # Reproducibility utilities
+│       ├── test.py            # Testing/evaluation logic
+│       ├── trainer.py         # Training loop
+│       │
+│       └── network/           # Model architectures package
+│           ├── __init__.py    # Main API (get_model, save_model, load_model)
+│           ├── base.py        # Flexible torchvision model loader
+│           └── custom.py      # Custom model architectures (SimpleCNN, TinyNet)
 │
 ├── data/                       # Data directory
-│   └── hymenoptera_data/      # Example dataset with train/val/test splits
-│       ├── train/
-│       ├── val/
-│       └── test/
+│   └── hymenoptera_data/      # Example dataset with raw images and index-based splits
+│       ├── raw/
+│       │   ├── ants/
+│       │   └── bees/
+│       └── splits/
+│           ├── test.txt
+│           ├── fold_0_train.txt
+│           └── fold_0_val.txt
 │
 └── runs/                       # Training run outputs
     └── {run_name}/            # Each run creates a directory
@@ -96,24 +108,35 @@ The project is configured for the Hymenoptera dataset (ants vs bees classificati
 
 ### Entry Points Layer
 
-**Files:** `train.py`, `inference.py`
+**Files:** `ml_src/cli/` (train.py, inference.py, splitting.py, visualise.py)
 
 - Orchestrate workflows
 - Parse CLI arguments
 - Setup infrastructure (logging, directories)
-- Call ml_src modules
+- Call ml_src.core modules
 
-**Purpose:** User-facing interfaces for training and inference.
+**Purpose:** User-facing CLI interfaces accessible via `ml-init-config`, `ml-train`, `ml-inference`, `ml-split`, and `ml-visualise` commands.
+
+**Entry Points:** Defined in `pyproject.toml` [project.scripts] section for easy command-line access.
 
 ---
 
 ### ML Source Package (`ml_src/`)
 
-**Core Modules:**
+**CLI Scripts (`ml_src/cli/`):**
+
+| Module | CLI Command | Purpose |
+|--------|-------------|---------|
+| `init_config.py` | `ml-init-config` | Dataset-specific config generation |
+| `train.py` | `ml-train` | Main training workflow |
+| `inference.py` | `ml-inference` | Model evaluation and testing |
+| `splitting.py` | `ml-split` | Dataset splitting utility |
+| `visualise.py` | `ml-visualise` | TensorBoard visualization |
+
+**Core Modules (`ml_src/core/`):**
 
 | Module | Purpose | Key Functions |
 |--------|---------|---------------|
-| `config.yaml` | Default configuration | All hyperparameters and settings |
 | `checkpointing.py` | State persistence | save_checkpoint, load_checkpoint, save_summary |
 | `dataset.py` | Data loading | get_datasets, get_transforms, get_class_names |
 | `loader.py` | DataLoader creation | get_dataloaders (with seeding) |
@@ -124,7 +147,13 @@ The project is configured for the Hymenoptera dataset (ants vs bees classificati
 | `test.py` | Model evaluation | test_model |
 | `trainer.py` | Training loop | train_model, collect_predictions |
 
-**Model Architecture Package (`network/`):**
+**Configuration:**
+
+| File | Purpose |
+|------|---------|
+| `config.yaml` | Default configuration with all hyperparameters and settings |
+
+**Model Architecture Package (`ml_src/core/network/`):**
 
 | Module | Purpose | Contents |
 |--------|---------|----------|
@@ -144,6 +173,7 @@ Each module has a single, well-defined responsibility:
 Configuration → Dataset → DataLoader → Model → Training → Evaluation
      ↓            ↓          ↓           ↓         ↓          ↓
 config.yaml  dataset.py  loader.py  network/  trainer.py  metrics.py
+                (core/)     (core/)   (core/)   (core/)     (core/)
 ```
 
 **Benefits:**
@@ -202,24 +232,36 @@ checkpoint = {
 
 ---
 
-### 4. Dual Entry Point Design
+### 4. CLI Entry Point Design
 
-Two independent scripts for different workflows:
+Multiple CLI commands for different workflows, accessible via `pyproject.toml`:
 
-**`train.py` (Training Workflow):**
+**`ml-train` (Training Workflow):**
 ```
 Config → Setup → Train → Validate → Checkpoint → Repeat
 ```
 
-**`inference.py` (Evaluation Workflow):**
+**`ml-inference` (Evaluation Workflow):**
 ```
 Load Config → Load Model → Test → Metrics → Results
 ```
 
+**`ml-split` (Dataset Splitting):**
+```
+Source Data → Split Ratios → Train/Val/Test Splits
+```
+
+**`ml-visualise` (Visualization):**
+```
+Run Directory → TensorBoard → Interactive Plots
+```
+
 **Benefits:**
-- Clear separation of training and inference
+- Clear command-line interface
+- Defined in pyproject.toml [project.scripts]
+- No need for `python script.py` syntax
+- Professional CLI tool experience
 - Can use trained models independently
-- Simpler to maintain
 - Better for deployment
 
 ---
@@ -230,8 +272,29 @@ Load Config → Load Model → Test → Metrics → Results
 
 1. **Namespace isolation** - Prevents naming conflicts
 2. **Importability** - Can `import ml_src` from anywhere
-3. **Distribution** - Can package and distribute separately
+3. **Distribution** - Can package and distribute separately via pip
 4. **Professional** - Matches standard Python project structure
+5. **Entry points** - Enables CLI commands via pyproject.toml
+
+### Why `cli/` and `core/` Separation?
+
+**`cli/` (Command-line interfaces):**
+- User-facing scripts
+- Argument parsing and orchestration
+- Entry points for `ml-train`, `ml-inference`, etc.
+- No business logic, just workflow coordination
+
+**`core/` (Core ML functionality):**
+- Reusable ML components
+- Business logic and algorithms
+- Importable by CLI scripts and other code
+- Can be used programmatically without CLI
+
+**Benefits:**
+1. **Clear separation** - Interface vs implementation
+2. **Reusability** - Core modules work without CLI
+3. **Testing** - Test core logic independently
+4. **Flexibility** - Can add GUI, API, or notebook interfaces later
 
 ### Why `network/` Sub-Package?
 
@@ -242,7 +305,7 @@ Load Config → Load Model → Test → Metrics → Results
 
 ### Why Separate Files for Similar Functions?
 
-Example: `dataset.py`, `loader.py`, `transforms.py` could be one file.
+Example: `dataset.py`, `loader.py` could be one file.
 
 **Reasons for separation:**
 - **Single responsibility** - Each file does one thing
@@ -271,9 +334,9 @@ runs/{run_name}/
 ```
 
 **Run Naming:**
-- Automatic based on hyperparameter overrides
-- Example: `batch_32_epochs_50_lr_0.01/`
-- Default: `base/`
+- Automatic based on dataset, fold, and hyperparameter overrides
+- Example: `hymenoptera_batch_32_epochs_50_lr_0.01_fold_0/`
+- Default: `hymenoptera_base_fold_0/`
 
 **Benefits:**
 - Self-documenting experiments
@@ -306,7 +369,7 @@ runs/{run_name}/
 | **seaborn** | Statistical visualizations |
 | **scikit-learn** | Metrics (classification report) |
 
-See `requirements.txt` for exact versions.
+See `pyproject.toml` for exact versions and all dependencies.
 
 ---
 

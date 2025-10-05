@@ -5,23 +5,31 @@ Training script for image classification models.
 
 import argparse
 import os
+
 import torch
 import yaml
 from loguru import logger
+from torch.utils.tensorboard import SummaryWriter
 
-from ml_src.dataset import get_datasets, get_class_names
-from ml_src.loader import get_dataloaders, get_dataset_sizes
-from ml_src.network import get_model
-from ml_src.loss import get_criterion
-from ml_src.optimizer import get_optimizer, get_scheduler
-from ml_src.trainer import train_model
-from ml_src.seeding import set_seed
-from ml_src.checkpointing import load_checkpoint
+from ml_src.core.checkpointing import load_checkpoint
+from ml_src.core.dataset import get_class_names, get_datasets
+from ml_src.core.loader import get_dataloaders, get_dataset_sizes
+from ml_src.core.loss import get_criterion
+from ml_src.core.metrics import (
+    get_classification_report_str,
+    log_confusion_matrix_to_tensorboard,
+    save_classification_report,
+)
+from ml_src.core.network import get_model, load_model
+from ml_src.core.optimizer import get_optimizer, get_scheduler
+from ml_src.core.seeding import set_seed
+from ml_src.core.test import test_model
+from ml_src.core.trainer import train_model
 
 
 def load_config(config_path):
     """Load configuration from YAML file."""
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
     return config
 
@@ -62,10 +70,7 @@ def create_run_dir(overrides, config, config_path):
     """Create run directory based on config overrides and save config."""
     dataset_name = config["data"].get("dataset_name", "dataset")
 
-    if overrides:
-        run_name = f"{dataset_name}_{'_'.join(overrides)}"
-    else:
-        run_name = f"{dataset_name}_base"
+    run_name = f"{dataset_name}_{'_'.join(overrides)}" if overrides else f"{dataset_name}_base"
 
     run_dir = os.path.join("runs", run_name)
     os.makedirs(run_dir, exist_ok=True)
@@ -117,8 +122,8 @@ def main():
     parser.add_argument(
         "--config",
         type=str,
-        default="ml_src/config.yaml",
-        help="Path to configuration file",
+        required=True,
+        help="Path to configuration file (use 'ml-init-config' to generate one)",
     )
     parser.add_argument(
         "--resume",
@@ -257,9 +262,61 @@ def main():
     )
 
     logger.info("=" * 50)
-    logger.success("Training Complete!")
+    logger.info("Running Test Evaluation")
+    logger.info("=" * 50)
+
+    # Load best checkpoint for testing
+    best_checkpoint_path = os.path.join(run_dir, "weights", "best.pt")
+    logger.info(f"Loading best checkpoint from {best_checkpoint_path}")
+    model = load_model(model, best_checkpoint_path, device)
+
+    # Run test evaluation
+    test_acc, per_sample_results = test_model(
+        model=model,
+        dataloader=dataloaders["test"],
+        dataset_size=dataset_sizes["test"],
+        device=device,
+        class_names=class_names,
+    )
+
+    # Extract labels and predictions for metrics
+    class_to_idx = {name: idx for idx, name in enumerate(class_names)}
+    test_labels = [class_to_idx[true_label] for true_label, _, _ in per_sample_results]
+    test_preds = [class_to_idx[pred_label] for _, pred_label, _ in per_sample_results]
+
+    # Initialize TensorBoard writer for test metrics
+    tensorboard_dir = os.path.join(run_dir, "tensorboard")
+    writer = SummaryWriter(tensorboard_dir)
+
+    # Log test metrics to TensorBoard
+    logger.info("Logging test metrics to TensorBoard...")
+    writer.add_scalar("Test/Accuracy", test_acc, 0)
+
+    # Log confusion matrix
+    log_confusion_matrix_to_tensorboard(
+        writer, test_labels, test_preds, class_names, "Confusion_Matrix/test", 0
+    )
+
+    # Log classification report
+    test_report = get_classification_report_str(test_labels, test_preds, class_names)
+    writer.add_text("Classification_Report/test", test_report, 0)
+
+    # Save classification report to file
+    save_classification_report(
+        test_labels,
+        test_preds,
+        class_names,
+        os.path.join(run_dir, "logs", "classification_report_test.txt"),
+    )
+
+    writer.close()
+    logger.success(f"Test Accuracy: {test_acc:.4f}")
+
+    logger.info("=" * 50)
+    logger.success("Training and Testing Complete!")
     logger.info("=" * 50)
     logger.info(f"View training metrics: tensorboard --logdir {run_dir}/tensorboard")
+    logger.info(f"Test results saved to: {run_dir}/logs/classification_report_test.txt")
 
 
 if __name__ == "__main__":

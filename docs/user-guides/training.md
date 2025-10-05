@@ -7,7 +7,7 @@ Complete guide to training workflows, best practices, and common scenarios.
 Before training:
 
 1. **Organize raw data** in `data/my_dataset/raw/` with class subdirectories
-2. **Generate CV splits** using `splitting.py`
+2. **Generate CV splits** using `ml-split`
 3. **Update configuration** with dataset name, data directory, and num_classes
 
 See [Data Preparation Guide](../getting-started/data-preparation.md) for details.
@@ -20,20 +20,18 @@ See [Data Preparation Guide](../getting-started/data-preparation.md) for details
 
 ```bash
 # One-time: Generate CV splits
-python splitting.py \
-  --raw_data data/my_dataset/raw \
-  --output data/my_dataset/splits \
-  --folds 5
+ml-split --raw_data data/my_dataset/raw --folds 5
+# Output: data/my_dataset/splits/
 
 # Train fold 0 (default)
-python train.py --fold 0
+ml-train --config configs/my_dataset_config.yaml --fold 0
 
 # Train with custom parameters
-python train.py --fold 0 --num_epochs 50 --batch_size 32 --lr 0.01
+ml-train --config configs/my_dataset_config.yaml --fold 0 --num_epochs 50 --batch_size 32 --lr 0.01
 
 # Train other folds
-python train.py --fold 1
-python train.py --fold 2
+ml-train --config configs/my_dataset_config.yaml --fold 1
+ml-train --config configs/my_dataset_config.yaml --fold 2
 ```
 
 ### Configuration File
@@ -52,7 +50,7 @@ model:
 
 Then train:
 ```bash
-python train.py
+ml-train
 ```
 
 ---
@@ -65,7 +63,7 @@ Quick test to verify everything works:
 
 ```bash
 # Quick test (5 epochs) on fold 0
-python train.py --fold 0 --num_epochs 5
+ml-train --config configs/my_dataset_config.yaml --fold 0 --num_epochs 5
 
 # Check results
 tensorboard --logdir runs/
@@ -77,14 +75,14 @@ Find optimal hyperparameters using one fold:
 
 ```bash
 # Test learning rates on fold 0
-python train.py --fold 0 --lr 0.0001 --num_epochs 20
-python train.py --fold 0 --lr 0.001 --num_epochs 20
-python train.py --fold 0 --lr 0.01 --num_epochs 20
+ml-train --config configs/my_dataset_config.yaml --fold 0 --lr 0.0001 --num_epochs 20
+ml-train --config configs/my_dataset_config.yaml --fold 0 --lr 0.001 --num_epochs 20
+ml-train --config configs/my_dataset_config.yaml --fold 0 --lr 0.01 --num_epochs 20
 
 # Test batch sizes
-python train.py --fold 0 --batch_size 16 --lr 0.001 --num_epochs 20
-python train.py --fold 0 --batch_size 32 --lr 0.001 --num_epochs 20
-python train.py --fold 0 --batch_size 64 --lr 0.001 --num_epochs 20
+ml-train --config configs/my_dataset_config.yaml --fold 0 --batch_size 16 --lr 0.001 --num_epochs 20
+ml-train --config configs/my_dataset_config.yaml --fold 0 --batch_size 32 --lr 0.001 --num_epochs 20
+ml-train --config configs/my_dataset_config.yaml --fold 0 --batch_size 64 --lr 0.001 --num_epochs 20
 
 # Compare in TensorBoard
 tensorboard --logdir runs/
@@ -96,19 +94,21 @@ Train all folds with best hyperparameters:
 
 ```bash
 # Use best hyperparams from search on all folds
-python train.py --fold 0 --lr 0.001 --batch_size 32 --num_epochs 100
-python train.py --fold 1 --lr 0.001 --batch_size 32 --num_epochs 100
-python train.py --fold 2 --lr 0.001 --batch_size 32 --num_epochs 100
-python train.py --fold 3 --lr 0.001 --batch_size 32 --num_epochs 100
-python train.py --fold 4 --lr 0.001 --batch_size 32 --num_epochs 100
+ml-train --config configs/my_dataset_config.yaml --fold 0 --lr 0.001 --batch_size 32 --num_epochs 100
+ml-train --config configs/my_dataset_config.yaml --fold 1 --lr 0.001 --batch_size 32 --num_epochs 100
+ml-train --config configs/my_dataset_config.yaml --fold 2 --lr 0.001 --batch_size 32 --num_epochs 100
+ml-train --config configs/my_dataset_config.yaml --fold 3 --lr 0.001 --batch_size 32 --num_epochs 100
+ml-train --config configs/my_dataset_config.yaml --fold 4 --lr 0.001 --batch_size 32 --num_epochs 100
 ```
 
 Or use a loop:
 ```bash
 for fold in {0..4}; do
-  python train.py --fold $fold --lr 0.001 --batch_size 32 --num_epochs 100
+  ml-train --config configs/my_dataset_config.yaml --fold $fold --lr 0.001 --batch_size 32 --num_epochs 100
 done
 ```
+
+**Important:** All folds are evaluated on the SAME held-out test set after training. Only train/val splits vary across folds. This ensures fair comparison.
 
 ### 4. Model Comparison
 
@@ -117,15 +117,15 @@ Compare different architectures:
 ```bash
 # Edit config for each model
 # ResNet18
-python train.py --fold 0 --num_epochs 50
+ml-train --fold 0 --num_epochs 50
 # (config: architecture: 'resnet18')
 
 # EfficientNet
-python train.py --fold 0 --num_epochs 50
+ml-train --fold 0 --num_epochs 50
 # (config: architecture: 'efficientnet_b0', weights: 'DEFAULT')
 
 # MobileNetV2
-python train.py --fold 0 --num_epochs 50
+ml-train --fold 0 --num_epochs 50
 # (config: architecture: 'mobilenet_v2', weights: 'DEFAULT')
 
 # Compare in TensorBoard
@@ -253,12 +253,12 @@ RuntimeError: CUDA out of memory
 
 1. **Reduce batch size:**
    ```bash
-   python train.py --batch_size 16  # or 8, 4
+   ml-train --batch_size 16  # or 8, 4
    ```
 
 2. **Use CPU (slower but works):**
    ```bash
-   python train.py --device cpu --batch_size 4
+   ml-train --device cpu --batch_size 4
    ```
 
 3. **Use gradient accumulation** (edit trainer code to accumulate over multiple steps)
@@ -273,12 +273,12 @@ RuntimeError: CUDA out of memory
 
 1. **Increase workers:**
    ```bash
-   python train.py --num_workers 8
+   ml-train --num_workers 8
    ```
 
 2. **Larger batch size:**
    ```bash
-   python train.py --batch_size 64  # if GPU has memory
+   ml-train --batch_size 64  # if GPU has memory
    ```
 
 3. **Check disk I/O:**
@@ -292,10 +292,10 @@ If training is interrupted:
 
 ```bash
 # Resume from last checkpoint
-python train.py --resume runs/hymenoptera_base_fold_0/last.pt
+ml-train --resume runs/hymenoptera_base_fold_0/last.pt
 
 # Resume and continue for more epochs
-python train.py --resume runs/hymenoptera_base_fold_0/last.pt --num_epochs 100
+ml-train --resume runs/hymenoptera_base_fold_0/last.pt --num_epochs 100
 ```
 
 **Note:** Resuming preserves:
@@ -340,12 +340,12 @@ python train.py --resume runs/hymenoptera_base_fold_0/last.pt --num_epochs 100
 
 2. **Train longer:**
    ```bash
-   python train.py --num_epochs 100
+   ml-train --num_epochs 100
    ```
 
 3. **Increase learning rate:**
    ```bash
-   python train.py --lr 0.01  # Instead of 0.001
+   ml-train --lr 0.01  # Instead of 0.001
    ```
 
 4. **Check data quality** (mislabeled images, wrong num_classes)
@@ -364,7 +364,7 @@ cp ml_src/config.yaml configs/experiment1.yaml
 # ...
 
 # Train with custom config
-python train.py --config configs/experiment1.yaml
+ml-train --config configs/experiment1.yaml
 ```
 
 ### Combining CLI and Config
@@ -373,17 +373,17 @@ CLI arguments override config file:
 
 ```bash
 # Uses config file, but overrides batch_size and lr
-python train.py --config configs/base.yaml --batch_size 64 --lr 0.01
+ml-train --config configs/base.yaml --batch_size 64 --lr 0.01
 ```
 
 ### Training on Specific GPU
 
 ```bash
 # Use GPU 1 instead of GPU 0
-python train.py --device cuda:1
+ml-train --device cuda:1
 
 # Or set environment variable
-CUDA_VISIBLE_DEVICES=1 python train.py
+CUDA_VISIBLE_DEVICES=1 ml-train
 ```
 
 ---
@@ -393,7 +393,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py
 ### Before Training
 
 1. ✅ **Verify dataset structure** - Check `raw/` and `splits/` exist
-2. ✅ **Generate splits** - Run `splitting.py` once
+2. ✅ **Generate splits** - Run `ml-split` once
 3. ✅ **Update config** - Set dataset_name, data_dir, num_classes
 4. ✅ **Quick test** - Train for 3-5 epochs to verify everything works
 5. ✅ **Check GPU** - Run `nvidia-smi` to ensure GPU is available
@@ -408,11 +408,15 @@ CUDA_VISIBLE_DEVICES=1 python train.py
 
 ### After Training
 
-1. ✅ **Evaluate on test set** - Use `inference.py` with best.pt
-2. ✅ **Analyze metrics** - Check confusion matrix, per-class performance
+1. ✅ **Test evaluation** - Automatically runs on held-out test set after training
+2. ✅ **Analyze metrics** - Check confusion matrix in TensorBoard and classification report
 3. ✅ **Document results** - Note hyperparameters and performance
 4. ✅ **Save important runs** - Keep config.yaml and best.pt
 5. ✅ **Clean up** - Delete unnecessary checkpoints to save space
+
+**Note:** The framework automatically evaluates the best model on the test set after training completes. Test results are saved to:
+- `runs/{run_name}/logs/classification_report_test.txt`
+- TensorBoard (confusion matrix, accuracy, classification report)
 
 ---
 
@@ -426,7 +430,7 @@ FileNotFoundError: Index file not found: data/my_dataset/splits/fold_0_train.txt
 
 **Solution:** Generate splits first:
 ```bash
-python splitting.py --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
+ml-split --raw_data data/my_dataset/raw --folds 5
 ```
 
 ### "CUDA not available"
@@ -436,7 +440,7 @@ python splitting.py --raw_data data/my_dataset/raw --output data/my_dataset/spli
 python -c "import torch; print(torch.cuda.is_available())"
 
 # If False, use CPU
-python train.py --device cpu
+ml-train --device cpu
 ```
 
 ### "Model output doesn't match num_classes"
@@ -495,7 +499,7 @@ Target: >90% GPU utilization
 - [Hyperparameter Tuning](hyperparameter-tuning.md) - Systematic parameter search
 - [Resuming Training](resuming-training.md) - Continue interrupted training
 - [Inference](inference.md) - Evaluate trained models
-- [Configuration Reference](../configuration/overview.md) - All parameters explained
+- [Configuration Reference](../configuration/README.md) - All parameters explained
 - [Troubleshooting](../reference/troubleshooting.md) - Common issues and solutions
 
 ---
@@ -512,6 +516,6 @@ Target: >90% GPU utilization
 
 **Ready to train?**
 ```bash
-python splitting.py --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
-python train.py --fold 0 --batch_size 32 --lr 0.01 --num_epochs 50
+ml-split --raw_data data/my_dataset/raw --folds 5
+ml-train --config configs/my_dataset_config.yaml --fold 0 --batch_size 32 --lr 0.01 --num_epochs 50
 ```

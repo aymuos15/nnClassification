@@ -636,7 +636,7 @@ cat > configs/production.yaml << 'EOF'
 EOF
 
 # Use it
-python train.py --config configs/production.yaml
+ml-train --config configs/production.yaml
 ```
 
 ### Option 2: Modify Base Config
@@ -648,21 +648,21 @@ nano ml_src/config.yaml
 # Paste example content
 
 # Train
-python train.py
+ml-train
 ```
 
 ### Option 3: Use CLI Overrides
 
 ```bash
 # Start with base, override key parameters
-python train.py --batch_size 64 --num_epochs 100 --lr 0.01
+ml-train --batch_size 64 --num_epochs 100 --lr 0.01
 ```
 
 ---
 
 ## Related Documentation
 
-- [Configuration Overview](overview.md) - How the config system works
+- [Configuration Overview](README.md) - How the config system works
 - [All Parameters](../configuration/) - Detailed parameter documentation
 - [CLI Overrides](cli-overrides.md) - Command-line overrides
 - [Best Practices](../reference/best-practices.md) - Configuration tips
@@ -684,7 +684,7 @@ python train.py --batch_size 64 --num_epochs 100 --lr 0.01
 
 3. **Experiment with CLI overrides**
    ```bash
-   python train.py --batch_size 32 --lr 0.01
+   ml-train --batch_size 32 --lr 0.01
    ```
 
 4. **Create your own config**

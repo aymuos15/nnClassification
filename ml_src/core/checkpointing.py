@@ -1,11 +1,12 @@
 """Checkpointing utilities for saving and resuming training."""
 
 import os
+import random
 import time
 from datetime import datetime
-import torch
+
 import numpy as np
-import random
+import torch
 from loguru import logger
 
 
@@ -263,7 +264,7 @@ def save_summary(
     if num_parameters is not None:
         lines.append(f"Model Parameters: {num_parameters:,}")
     if dataset_sizes:
-        lines.append(f"Dataset Sizes:")
+        lines.append("Dataset Sizes:")
         for split, size in dataset_sizes.items():
             lines.append(f"  {split}: {size:,}")
     lines.append("")

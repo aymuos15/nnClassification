@@ -6,10 +6,10 @@ How to resume interrupted training and extend training runs.
 
 ```bash
 # Basic resumption
-python train.py --resume runs/base/last.pt
+ml-train --resume runs/base/last.pt
 
 # Resume and train more epochs
-python train.py --resume runs/base/last.pt --num_epochs 100
+ml-train --resume runs/base/last.pt --num_epochs 100
 ```
 
 ## What Gets Restored
@@ -27,24 +27,24 @@ python train.py --resume runs/base/last.pt --num_epochs 100
 ### 1. Training Interrupted
 ```bash
 # Crashed at epoch 47
-python train.py --resume runs/base/last.pt
+ml-train --resume runs/base/last.pt
 # Continues from epoch 48
 ```
 
 ### 2. Extend Training
 ```bash
 # Initially trained 25 epochs
-python train.py --num_epochs 25
+ml-train --num_epochs 25
 
 # Not converged, train 25 more
-python train.py --resume runs/base/last.pt --num_epochs 50
+ml-train --resume runs/base/last.pt --num_epochs 50
 # Continues to epoch 50
 ```
 
 ### 3. Fine-tune Further
 ```bash
 # Lower LR for fine-tuning
-python train.py --resume runs/base/best.pt --lr 0.0001 --num_epochs 75
+ml-train --resume runs/base/best.pt --lr 0.0001 --num_epochs 75
 ```
 
 ## Troubleshooting

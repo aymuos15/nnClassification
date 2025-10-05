@@ -14,8 +14,8 @@ Tests verify:
 
 import pytest
 import torch
-from ml_src.network import get_model
 
+from ml_src.core.network import get_model
 
 # Test architectures organized by family
 # Using representative models from each family to ensure comprehensive coverage

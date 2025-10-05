@@ -2,8 +2,8 @@
 
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, classification_report
 from loguru import logger
+from sklearn.metrics import classification_report, confusion_matrix
 
 
 def save_confusion_matrix(y_true, y_pred, class_names, save_path):

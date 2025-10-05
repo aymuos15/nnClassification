@@ -13,13 +13,19 @@ This document explains the architectural choices made in this framework and thei
 **Structure:**
 ```
 ml_src/
-├── dataset.py      # Data loading only
-├── loader.py       # DataLoader creation only
-├── network/        # Model architectures only
-├── loss.py         # Loss functions only
-├── optimizer.py    # Optimization only
-├── trainer.py      # Training loop only
-└── ...
+├── cli/            # Command-line interfaces
+│   ├── train.py
+│   ├── inference.py
+│   ├── splitting.py
+│   └── visualise.py
+└── core/           # Core ML modules
+    ├── dataset.py      # Data loading only
+    ├── loader.py       # DataLoader creation only
+    ├── network/        # Model architectures only
+    ├── loss.py         # Loss functions only
+    ├── optimizer.py    # Optimization only
+    ├── trainer.py      # Training loop only
+    └── ...
 ```
 
 ### Rationale
@@ -43,7 +49,7 @@ ml_src/
 
 **Structure:**
 ```
-ml_src/
+ml_src/core/
 ├── network/        # Model architectures
 ├── loss.py         # Loss functions
 └── optimizer.py    # Optimizers & schedulers
@@ -79,13 +85,66 @@ criterion = FocalLoss(...)
 
 ---
 
+## CLI and Core Separation
+
+### Decision: Separate `cli/` and `core/` directories
+
+**Structure:**
+```
+ml_src/
+├── cli/            # User-facing command-line interfaces
+│   ├── train.py    # Orchestrates training workflow
+│   ├── inference.py # Orchestrates inference workflow
+│   ├── splitting.py # Dataset splitting utility
+│   └── visualise.py # Visualization utility
+└── core/           # Reusable ML components
+    ├── dataset.py  # Dataset logic
+    ├── loader.py   # DataLoader logic
+    ├── trainer.py  # Training logic
+    ├── network/    # Model architectures
+    └── ...
+```
+
+### Rationale
+
+**CLI layer responsibilities:**
+- Argument parsing
+- Workflow orchestration
+- User interaction
+- Error reporting
+- Entry point definitions
+
+**Core layer responsibilities:**
+- ML algorithms and logic
+- Reusable components
+- Business logic
+- No CLI dependencies
+
+**Benefits:**
+1. **Separation of concerns** - Interface vs implementation
+2. **Reusability** - Core modules can be imported programmatically
+3. **Testability** - Test core logic without CLI
+4. **Flexibility** - Can add GUI, API, notebooks later
+5. **Clarity** - Clear what's user-facing vs internal
+6. **Professional** - Matches enterprise Python projects
+
+**Alternative rejected:** Scripts in root directory calling ml_src modules
+
+**Why rejected:**
+- Scripts not part of package
+- Harder to distribute
+- Less clear organization
+- Can't easily add other interfaces
+
+---
+
 ## Network Package Structure
 
 ### Decision: Package instead of single file
 
 **Structure:**
 ```
-network/
+ml_src/core/network/
 ├── __init__.py     # Main API
 ├── base.py         # Torchvision models
 └── custom.py       # Custom architectures
@@ -302,25 +361,42 @@ transforms:
 
 ---
 
-## Separate Train/Inference Scripts
+## CLI Entry Points via pyproject.toml
 
-### Decision: Two entry points instead of one
+### Decision: Multiple CLI commands defined in pyproject.toml
 
 **Files:**
-- `train.py` - Training workflow
-- `inference.py` - Evaluation workflow
+- `ml_src/cli/train.py` - Training workflow (command: `ml-train`)
+- `ml_src/cli/inference.py` - Evaluation workflow (command: `ml-inference`)
+- `ml_src/cli/splitting.py` - Dataset splitting (command: `ml-split`)
+- `ml_src/cli/visualise.py` - Visualization (command: `ml-visualise`)
+
+**Entry Point Definition:**
+```toml
+[project.scripts]
+ml-train = "ml_src.cli.train:main"
+ml-inference = "ml_src.cli.inference:main"
+ml-split = "ml_src.cli.splitting:main"
+ml-visualise = "ml_src.cli.visualise:main"
+```
 
 ### Rationale
 
 **Benefits:**
-1. **Clarity** - Each script does one thing
-2. **Independence** - Use trained models without training code
-3. **Simpler** - Easier to understand and maintain
-4. **Deployment** - Only need inference.py for production
+1. **Professional CLI** - Clean command interface without `python script.py`
+2. **Package structure** - CLI separated from core logic in `cli/` directory
+3. **Clarity** - Each command does one thing
+4. **Independence** - Use trained models without training code
+5. **Simpler** - Easier to understand and maintain
+6. **Deployment** - Only need inference for production
+7. **Discoverability** - Users can find commands easily
 
-**Alternative rejected:** Single script with modes
+**Alternative rejected:** Root-level scripts with `python X.py`
 
-**Why rejected:** Complex flag handling, confusing logic
+**Why rejected:**
+- Not as professional
+- Harder to package and distribute
+- Mixes interface and implementation
 
 ---
 
@@ -462,7 +538,7 @@ DataLoader(..., worker_init_fn=seed_worker)
 
 ## Related Documentation
 
-- [Architecture Overview](overview.md)
+- [Architecture Overview](README.md)
 - [Entry Points](entry-points.md)
 - [ML Source Modules](ml-src-modules.md)
 - [Data Flow](data-flow.md)

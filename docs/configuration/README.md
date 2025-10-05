@@ -32,7 +32,7 @@ This is the default configuration file that contains all standard settings.
 You can create custom configuration files anywhere:
 
 ```bash
-python train.py --config path/to/custom_config.yaml
+ml-train --config path/to/custom_config.yaml
 ```
 
 ### Per-Run Saved Configuration

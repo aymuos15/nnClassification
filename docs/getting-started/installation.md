@@ -58,16 +58,18 @@ conda activate pytorch-classifier
 ### 3. Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
-This installs all required packages including:
+This installs the package in editable mode along with all required dependencies including:
 - PyTorch and torchvision
 - TensorBoard
 - NumPy, Pillow
 - matplotlib, seaborn
 - scikit-learn
 - PyYAML, loguru, rich
+
+**Note:** After installation, CLI commands (`ml-train`, `ml-inference`, `ml-split`, `ml-visualise`) are available globally in your environment.
 
 ---
 
@@ -167,11 +169,11 @@ PyTorch bundles cuDNN. If you need a specific version:
 **Solution:**
 ```bash
 # Try pip3
-pip3 install -r requirements.txt
+pip3 install -e .
 
 # Or use python -m pip
-python -m pip install -r requirements.txt
-python3 -m pip install -r requirements.txt
+python -m pip install -e .
+python3 -m pip install -e .
 ```
 
 ### Issue: "torch not found" or Import Error
@@ -213,10 +215,10 @@ See [PyTorch Get Started](https://pytorch.org/get-started/locally/) for all opti
 **Solution:**
 ```bash
 # Use --user flag
-pip install -r requirements.txt --user
+pip install -e . --user
 
 # Or use sudo (not recommended)
-sudo pip install -r requirements.txt
+sudo pip install -e .
 ```
 
 ### Issue: Out of Disk Space
@@ -230,7 +232,7 @@ df -h
 pip cache purge
 
 # Install to different location
-pip install -r requirements.txt --target /path/to/large/disk
+pip install -e . --target /path/to/large/disk
 ```
 
 ### Issue: Slow Installation
@@ -238,10 +240,10 @@ pip install -r requirements.txt --target /path/to/large/disk
 **Solution:**
 ```bash
 # Use faster mirror (example: Aliyun for China)
-pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+pip install -e . -i https://mirrors.aliyun.com/pypi/simple/
 
 # Or skip dependencies if already installed
-pip install -r requirements.txt --no-deps
+pip install -e . --no-deps
 ```
 
 ---
@@ -258,7 +260,7 @@ sudo apt-get install python3 python3-pip python3-venv
 # Install project
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### macOS
@@ -270,7 +272,7 @@ brew install python
 # Install project
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 **Note:** macOS doesn't have CUDA support. Use CPU or Google Colab for GPU.
@@ -285,7 +287,7 @@ python -m venv venv
 venv\Scripts\activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -e .
 ```
 
 **Note:** Windows paths use backslashes (`\`). Adjust paths in configs accordingly.
@@ -301,15 +303,15 @@ FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
 
 WORKDIR /workspace
 
-# Copy requirements
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-# Copy code
+# Copy project files
+COPY pyproject.toml .
 COPY . .
 
+# Install package
+RUN pip install -e .
+
 # Set entrypoint
-ENTRYPOINT ["python", "train.py"]
+ENTRYPOINT ["ml-train"]
 ```
 
 ### Build and Run
@@ -340,11 +342,11 @@ docker run --gpus all -it pytorch-classifier /bin/bash
    ```
 4. Install dependencies:
    ```bash
-   !pip install -r requirements.txt
+   !pip install -e .
    ```
 5. Run training:
    ```bash
-   !python train.py
+   !ml-train
    ```
 
 ### AWS EC2
@@ -361,10 +363,10 @@ cd gui
 source activate pytorch
 
 # Install additional dependencies
-pip install -r requirements.txt
+pip install -e .
 
 # Run training
-python train.py
+ml-train
 ```
 
 ### Google Cloud Platform
@@ -379,10 +381,10 @@ gcloud compute ssh instance-name
 # Clone and install
 git clone <repo-url>
 cd gui
-pip install -r requirements.txt
+pip install -e .
 
 # Run training
-python train.py
+ml-train
 ```
 
 ---
@@ -392,7 +394,7 @@ python train.py
 ### Update All Packages
 
 ```bash
-pip install --upgrade -r requirements.txt
+pip install --upgrade -e .
 ```
 
 ### Update Specific Package
@@ -415,7 +417,7 @@ After installation:
 
 1. **Verify installation works:**
    ```bash
-   python train.py --num_epochs 1 --batch_size 2
+   ml-train --num_epochs 1 --batch_size 2
    ```
 
 2. **Prepare your data:**
@@ -425,7 +427,7 @@ After installation:
    - See [Quick Start Guide](quick-start.md)
 
 4. **Explore configuration:**
-   - See [Configuration Documentation](../configuration/overview.md)
+   - See [Configuration Documentation](../configuration/README.md)
 
 ---
 
@@ -461,7 +463,8 @@ Save this output when reporting issues.
 ✅ **Installation checklist:**
 - [ ] Python 3.8+ installed
 - [ ] Virtual environment created and activated
-- [ ] Requirements installed (`pip install -r requirements.txt`)
+- [ ] Package installed (`pip install -e .`)
+- [ ] CLI commands available globally
 - [ ] PyTorch imported successfully
 - [ ] CUDA available (optional, for GPU)
 - [ ] Test run completed

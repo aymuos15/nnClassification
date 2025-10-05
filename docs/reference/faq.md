@@ -32,7 +32,7 @@ See: [Data Preparation](../getting-started/data-preparation.md)
 
 **A:** Use the `--resume` flag:
 ```bash
-python train.py --resume runs/base/last.pt
+ml-train --resume runs/base/last.pt
 ```
 
 See: [Resuming Training](../user-guides/resuming-training.md)
@@ -45,7 +45,7 @@ See: [Resuming Training](../user-guides/resuming-training.md)
 
 **A:** Use CLI override or edit config:
 ```bash
-python train.py --lr 0.01
+ml-train --lr 0.01
 ```
 
 Or in `ml_src/config.yaml`:
@@ -80,10 +80,52 @@ model:
 
 **A:**
 ```bash
-python train.py --batch_size 32
+ml-train --batch_size 32
 ```
 
 Start small (8-16) and increase until GPU memory is full.
+
+---
+
+## Data & Cross-Validation
+
+### Q: What data structure is required?
+
+**A:** The framework uses an index-based structure where raw images are stored once and referenced by text files for each split.
+
+**Mandatory structure:**
+```
+data/your_dataset/
+├── raw/
+│   ├── class1/
+│   └── class2/
+└── splits/
+    ├── test.txt
+    ├── fold_0_train.txt
+    └── fold_0_val.txt
+```
+You must run `ml-split` to generate the `splits/` directory. See the [Data Preparation Guide](../getting-started/data-preparation.md) for details.
+
+---
+
+### Q: How does cross-validation work with test sets?
+
+**A:** Test set is held out ONCE and is the SAME for all folds:
+- ✅ **Test set:** 15% held out once (test.txt) - SAME for all folds
+- ✅ **Train/Val:** Remaining 85% split across k folds (varies per fold)
+- ✅ **Fair comparison:** All folds evaluated on identical test set
+
+**Why not different test sets per fold?**
+Different test sets would make fold results incomparable. Our approach ensures consistent evaluation.
+
+---
+
+### Q: Where is my test data after running ml-split?
+
+**A:** Check `data/my_dataset/splits/test.txt` (single file, no fold number).
+- ✅ `test.txt` - Same for all folds
+- ✅ `fold_0_train.txt`, `fold_0_val.txt` - Vary per fold
+- ✅ `fold_1_train.txt`, `fold_1_val.txt` - Vary per fold
 
 ---
 
@@ -104,8 +146,8 @@ Monitor validation curves and stop when they plateau.
 ### Q: Training is very slow. What can I do?
 
 **A:**
-1. Increase batch size: `--batch_size 64`
-2. Increase workers: `--num_workers 8`
+1. Increase batch size: `ml-train --batch_size 64`
+2. Increase workers: `ml-train --num_workers 8`
 3. Use smaller images (edit transforms in config)
 4. Use faster model: `efficientnet_b0` or `mobilenet_v3_small`
 
@@ -116,10 +158,10 @@ See: [Performance Tuning](performance-tuning.md)
 ### Q: I'm getting "CUDA out of memory" errors. Help?
 
 **A:**
-1. Reduce batch size: `--batch_size 8`
+1. Reduce batch size: `ml-train --batch_size 8`
 2. Reduce image size (edit config transforms)
 3. Use smaller model
-4. Train on CPU: `--device cpu`
+4. Train on CPU: `ml-train --device cpu`
 
 See: [Troubleshooting](troubleshooting.md)
 
@@ -132,49 +174,6 @@ See: [Troubleshooting](troubleshooting.md)
 - Validation accuracy should increase
 - Gap between train/val not too large (indicates overfitting)
 - Check TensorBoard: `tensorboard --logdir runs/`
-
----
-
-## Data
-
-### Q: What data structure is required?
-
-**A:** **Mandatory** structure:
-```
-data/my_dataset/
-├── train/
-│   ├── class1/
-│   └── class2/
-├── val/
-│   ├── class1/
-│   └── class2/
-└── test/
-    ├── class1/
-    └── class2/
-```
-
-See: [Data Preparation](../getting-started/data-preparation.md)
-
----
-
-### Q: Do all splits need the same classes?
-
-**A:** **Yes!** All three splits (train/val/test) must have identical class folder names.
-
----
-
-### Q: What image formats are supported?
-
-**A:** JPG, PNG, BMP, GIF, TIFF, and any format PIL/Pillow can read. JPG and PNG recommended.
-
----
-
-### Q: How should I split my data?
-
-**A:**
-- < 1,000 images: 70% train, 15% val, 15% test
-- 1,000-10,000: 70% train, 20% val, 10% test
-- 10,000+: 80% train, 10% val, 10% test
 
 ---
 
@@ -216,9 +215,13 @@ Note: Existing checkpoints won't work (different architecture).
 
 ### Q: How do I run inference on test data?
 
-**A:**
+**A:** Test evaluation is **automatic** after training! Results are saved to:
+- `runs/{run_name}/logs/classification_report_test.txt`
+- TensorBoard (confusion matrix, metrics)
+
+For manual inference:
 ```bash
-python inference.py --run_dir runs/base --checkpoint best.pt
+ml-inference runs/base/weights/best.pt
 ```
 
 See: [Inference Guide](../user-guides/inference.md)
@@ -227,7 +230,7 @@ See: [Inference Guide](../user-guides/inference.md)
 
 ### Q: Can I test on a single image?
 
-**A:** Not directly supported. You'd need to modify `inference.py` or create a new script.
+**A:** Not directly supported. You'd need to modify the inference module or create a new script.
 
 ---
 
@@ -271,9 +274,9 @@ See: [Monitoring Guide](../user-guides/monitoring.md)
 
 **A:** Run multiple experiments with different values:
 ```bash
-python train.py --lr 0.001 --batch_size 16
-python train.py --lr 0.01 --batch_size 16
-python train.py --lr 0.01 --batch_size 32
+ml-train --lr 0.001 --batch_size 16
+ml-train --lr 0.01 --batch_size 16
+ml-train --lr 0.01 --batch_size 32
 ```
 
 Compare in TensorBoard.
@@ -328,7 +331,7 @@ See: [Data Preparation](../getting-started/data-preparation.md)
 
 **A:** Reduce batch size:
 ```bash
-python train.py --batch_size 8
+ml-train --batch_size 8
 ```
 
 See: [Troubleshooting](troubleshooting.md)
@@ -338,7 +341,7 @@ See: [Troubleshooting](troubleshooting.md)
 ### Q: Loss becomes NaN during training?
 
 **A:**
-1. Lower learning rate: `--lr 0.0001`
+1. Lower learning rate: `ml-train --lr 0.0001`
 2. Check data normalization
 3. Verify labels are correct
 
@@ -386,7 +389,7 @@ See: [Adding Optimizers](../development/adding-optimizers.md)
 
 **A:**
 - [Documentation Index](../README.md)
-- [Configuration Reference](../configuration/overview.md)
+- [Configuration Reference](../configuration/README.md)
 - [Troubleshooting Guide](troubleshooting.md)
 
 ---

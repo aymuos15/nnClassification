@@ -69,5 +69,5 @@ Tips and conventions for effective use of the framework.
 ## Related
 
 - [Training Guide](../user-guides/training.md)
-- [Configuration](../configuration/overview.md)
+- [Configuration](../configuration/README.md)
 - [Troubleshooting](troubleshooting.md)

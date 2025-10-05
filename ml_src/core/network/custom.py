@@ -44,7 +44,7 @@ class SimpleCNN(nn.Module):
     """
 
     def __init__(self, num_classes, input_size=224, dropout=0.5):
-        super(SimpleCNN, self).__init__()
+        super().__init__()
 
         # Convolutional layers
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1)
@@ -121,7 +121,7 @@ class TinyNet(nn.Module):
     """
 
     def __init__(self, num_classes, input_size=224):
-        super(TinyNet, self).__init__()
+        super().__init__()
 
         self.conv1 = nn.Conv2d(3, 16, kernel_size=5, padding=2)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=5, padding=2)

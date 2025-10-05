@@ -94,3 +94,10 @@ Thumbs.db
 
 # Project specific
 .claude/
+
+# User-specific configs (keep directory structure)
+configs/*.yaml
+!configs/.gitkeep
+
+# MkDocs
+site/

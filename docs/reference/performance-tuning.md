@@ -7,13 +7,13 @@ Optimize training speed and memory usage.
 ### Batch Size
 ```bash
 # Larger batch = faster (if GPU memory allows)
-python train.py --batch_size 64
+ml-train --batch_size 64
 ```
 
 ### Data Loading
 ```bash
 # More workers = faster data loading
-python train.py --num_workers 8
+ml-train --num_workers 8
 ```
 
 ### Determinism
@@ -34,7 +34,7 @@ transforms:
 
 ### Reduce Batch Size
 ```bash
-python train.py --batch_size 8
+ml-train --batch_size 8
 ```
 
 ### Reduce Image Resolution
@@ -46,7 +46,7 @@ transforms:
 
 ### Reduce Workers
 ```bash
-python train.py --num_workers 2
+ml-train --num_workers 2
 ```
 
 ### Smaller Model
@@ -106,5 +106,5 @@ Example training speed (ResNet18, batch 32):
 ## Related
 
 - [Training Guide](../user-guides/training.md)
-- [Configuration](../configuration/overview.md)
+- [Configuration](../configuration/README.md)
 - [Troubleshooting](troubleshooting.md)

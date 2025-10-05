@@ -29,7 +29,7 @@ optimizer:
 #### CLI Override
 
 ```bash
-python train.py --lr 0.01
+ml-train --lr 0.01
 ```
 
 #### Typical Ranges
@@ -65,13 +65,13 @@ python train.py --lr 0.01
 **Method 1: Start Conservative**
 ```bash
 # Start with default
-python train.py --lr 0.001
+ml-train --lr 0.001
 
 # If loss decreases too slowly → increase
-python train.py --lr 0.01
+ml-train --lr 0.01
 
 # If loss diverges/NaN → decrease
-python train.py --lr 0.0001
+ml-train --lr 0.0001
 ```
 
 **Method 2: LR Range Test** (not implemented, but recommended)
@@ -144,7 +144,7 @@ optimizer:
 #### CLI Override
 
 ```bash
-python train.py --momentum 0.95
+ml-train --momentum 0.95
 ```
 
 #### How Momentum Works
@@ -234,7 +234,7 @@ scheduler:
 #### CLI Override
 
 ```bash
-python train.py --step_size 10
+ml-train --step_size 10
 ```
 
 #### How It Works
@@ -324,7 +324,7 @@ scheduler:
 #### CLI Override
 
 ```bash
-python train.py --gamma 0.5
+ml-train --gamma 0.5
 ```
 
 #### Common Values
@@ -465,20 +465,20 @@ scheduler:
 
 ```bash
 # 1. Find good LR first (fix other params)
-python train.py --lr 0.0001 --num_epochs 10
-python train.py --lr 0.001 --num_epochs 10
-python train.py --lr 0.01 --num_epochs 10
+ml-train --lr 0.0001 --num_epochs 10
+ml-train --lr 0.001 --num_epochs 10
+ml-train --lr 0.01 --num_epochs 10
 
 # 2. Use best LR, tune batch size
-python train.py --lr 0.001 --batch_size 16
-python train.py --lr 0.001 --batch_size 32
-python train.py --lr 0.001 --batch_size 64
+ml-train --lr 0.001 --batch_size 16
+ml-train --lr 0.001 --batch_size 32
+ml-train --lr 0.001 --batch_size 64
 
 # 3. Scale LR with batch size
-python train.py --lr 0.002 --batch_size 64
+ml-train --lr 0.002 --batch_size 64
 
 # 4. Fine-tune scheduler if needed
-python train.py --lr 0.002 --batch_size 64 --step_size 10
+ml-train --lr 0.002 --batch_size 64 --step_size 10
 ```
 
 ## Troubleshooting

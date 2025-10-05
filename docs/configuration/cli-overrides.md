@@ -20,7 +20,9 @@ Command-line arguments override YAML configuration, enabling quick experimentati
 | CLI Argument | Config Path | Type | Example |
 |-------------|-------------|------|---------|
 | `--config` | (Specifies YAML file) | string | `--config custom.yaml` |
+| `--dataset_name` | `data.dataset_name` | string | `--dataset_name my_dataset` |
 | `--data_dir` | `data.data_dir` | string | `--data_dir data/my_dataset` |
+| `--fold` | `data.fold` | int | `--fold 1` |
 | `--batch_size` | `training.batch_size` | int | `--batch_size 32` |
 | `--num_workers` | `data.num_workers` | int | `--num_workers 8` |
 | `--num_epochs` | `training.num_epochs` | int | `--num_epochs 50` |
@@ -39,69 +41,75 @@ Command-line arguments override YAML configuration, enabling quick experimentati
 
 ```bash
 # Use base config, override batch size
-python train.py --batch_size 32
+ml-train --batch_size 32
 ```
 
 ### Multiple Overrides
 
 ```bash
 # Override several parameters
-python train.py --batch_size 32 --lr 0.01 --num_epochs 50
+ml-train --batch_size 32 --lr 0.01 --num_epochs 50
 ```
 
 ### Custom Config File
 
 ```bash
 # Use custom config
-python train.py --config configs/my_config.yaml
+ml-train --config configs/my_config.yaml
 
 # Custom config + overrides
-python train.py --config configs/my_config.yaml --batch_size 64
+ml-train --config configs/my_config.yaml --batch_size 64
 ```
 
 ### Resume Training
 
 ```bash
 # Resume from last checkpoint
-python train.py --resume runs/base/last.pt
+ml-train --resume runs/base/last.pt
 
 # Resume and train more epochs
-python train.py --resume runs/base/last.pt --num_epochs 50
+ml-train --resume runs/base/last.pt --num_epochs 50
 ```
 
 ---
 
 ## Run Directory Naming
 
-Run directories are automatically named based on overrides. This creates organized, self-documenting experiment folders.
+Run directories are automatically named based on the dataset name, fold number, and hyperparameter overrides. This creates organized, self-documenting experiment folders.
 
 ### Naming Rules
 
+The format is: `runs/{dataset_name}_{overrides}_fold_{fold_num}`
+
 **No overrides:**
 ```bash
-python train.py
-# Creates: runs/base/
+# Assuming dataset_name: 'hymenoptera', fold: 0
+ml-train
+# Creates: runs/hymenoptera_base_fold_0/
 ```
 
-**Single override:**
+**With fold override:**
 ```bash
-python train.py --batch_size 32
-# Creates: runs/batch_32/
+ml-train --fold 1
+# Creates: runs/hymenoptera_base_fold_1/
+```
 
-python train.py --lr 0.01
-# Creates: runs/lr_0.01/
+**With hyperparameter overrides:**
+```bash
+ml-train --fold 0 --batch_size 32
+# Creates: runs/hymenoptera_batch_32_fold_0/
 
-python train.py --num_epochs 50
-# Creates: runs/epochs_50/
+ml-train --fold 0 --lr 0.01
+# Creates: runs/hymenoptera_lr_0.01_fold_0/
 ```
 
 **Multiple overrides:**
 ```bash
-python train.py --batch_size 32 --num_epochs 50
-# Creates: runs/batch_32_epochs_50/
+ml-train --fold 1 --batch_size 32 --num_epochs 50
+# Creates: runs/hymenoptera_batch_32_epochs_50_fold_1/
 
-python train.py --batch_size 32 --lr 0.01 --num_epochs 50
-# Creates: runs/batch_32_epochs_50_lr_0.01/
+ml-train --fold 1 --batch_size 32 --lr 0.01 --num_epochs 50
+# Creates: runs/hymenoptera_batch_32_epochs_50_lr_0.01_fold_1/
 ```
 
 ### Which Parameters Affect Run Name?
@@ -130,9 +138,9 @@ python train.py --batch_size 32 --lr 0.01 --num_epochs 50
 
 ```bash
 # Try different batch sizes
-python train.py --batch_size 16
-python train.py --batch_size 32
-python train.py --batch_size 64
+ml-train --batch_size 16
+ml-train --batch_size 32
+ml-train --batch_size 64
 
 # Compare results in:
 # - runs/batch_16/
@@ -146,7 +154,7 @@ python train.py --batch_size 64
 # Grid search over LR and batch size
 for lr in 0.001 0.01 0.1; do
   for bs in 16 32 64; do
-    python train.py --lr $lr --batch_size $bs
+    ml-train --lr $lr --batch_size $bs
   done
 done
 
@@ -162,36 +170,36 @@ done
 
 ```bash
 # Train on different datasets (same hyperparams)
-python train.py --data_dir data/dataset1
-python train.py --data_dir data/dataset2
-python train.py --data_dir data/dataset3
+ml-train --data_dir data/dataset1
+ml-train --data_dir data/dataset2
+ml-train --data_dir data/dataset3
 
 # Note: All create runs/base/ (data_dir doesn't affect run name)
 # Solution: Use different configs or add meaningful overrides
-python train.py --data_dir data/dataset1 --num_epochs 25
-python train.py --data_dir data/dataset2 --num_epochs 50
+ml-train --data_dir data/dataset1 --num_epochs 25
+ml-train --data_dir data/dataset2 --num_epochs 50
 ```
 
 ### 4. GPU Selection
 
 ```bash
 # Use specific GPU (doesn't affect run name)
-python train.py --device cuda:0
-python train.py --device cuda:1
+ml-train --device cuda:0
+ml-train --device cuda:1
 
 # Or via environment variable
-CUDA_VISIBLE_DEVICES=1 python train.py
+CUDA_VISIBLE_DEVICES=1 ml-train
 ```
 
 ### 5. Resume and Extend
 
 ```bash
 # Train 25 epochs
-python train.py --num_epochs 25
+ml-train --num_epochs 25
 # Saves to: runs/epochs_25/
 
 # If not converged, resume and train more
-python train.py --resume runs/epochs_25/last.pt --num_epochs 50
+ml-train --resume runs/epochs_25/last.pt --num_epochs 50
 # Note: Continues training up to epoch 50 total
 ```
 
@@ -206,7 +214,7 @@ You can combine custom configs with CLI overrides:
 ```bash
 # configs/production.yaml has most settings
 # Override just batch_size
-python train.py --config configs/production.yaml --batch_size 128
+ml-train --config configs/production.yaml --batch_size 128
 ```
 
 **Use case:** Base config for a project, tweak individual params
@@ -215,7 +223,7 @@ python train.py --config configs/production.yaml --batch_size 128
 
 ```bash
 # Quick debug run (small batch, few epochs, no workers)
-python train.py --batch_size 2 --num_epochs 2 --num_workers 0
+ml-train --batch_size 2 --num_epochs 2 --num_workers 0
 
 # Creates: runs/batch_2_epochs_2/
 ```
@@ -223,7 +231,7 @@ python train.py --batch_size 2 --num_epochs 2 --num_workers 0
 ### Full Override Example
 
 ```bash
-python train.py \
+ml-train \
   --config ml_src/config.yaml \
   --data_dir /mnt/datasets/imagenet \
   --batch_size 64 \
@@ -263,23 +271,23 @@ This shows the final merged config (YAML + overrides).
 
 ```bash
 # First, train with base config
-python train.py
+ml-train
 
 # Then experiment with overrides
-python train.py --lr 0.01
-python train.py --batch_size 32
+ml-train --lr 0.01
+ml-train --batch_size 32
 ```
 
 ### 2. Systematic Exploration
 
 ```bash
 # Test one parameter at a time
-python train.py --lr 0.0001
-python train.py --lr 0.001
-python train.py --lr 0.01
+ml-train --lr 0.0001
+ml-train --lr 0.001
+ml-train --lr 0.01
 
 # Then combine best values
-python train.py --lr 0.001 --batch_size 32
+ml-train --lr 0.001 --batch_size 32
 ```
 
 ### 3. Document Experiments
@@ -290,13 +298,13 @@ cat > experiments.sh << 'EOF'
 #!/bin/bash
 
 # Experiment 1: Baseline
-python train.py
+ml-train
 
 # Experiment 2: Higher LR
-python train.py --lr 0.01
+ml-train --lr 0.01
 
 # Experiment 3: Larger batch
-python train.py --batch_size 32 --lr 0.002
+ml-train --batch_size 32 --lr 0.002
 EOF
 
 chmod +x experiments.sh
@@ -315,7 +323,7 @@ batch_sizes=(16 32 64)
 for lr in "${learning_rates[@]}"; do
   for bs in "${batch_sizes[@]}"; do
     echo "Training with lr=$lr, batch_size=$bs"
-    python train.py --lr $lr --batch_size $bs
+    ml-train --lr $lr --batch_size $bs
   done
 done
 ```
@@ -354,10 +362,10 @@ Error: Run directory 'runs/batch_32/' already exists
 rm -rf runs/batch_32/
 
 # Option 2: Use different hyperparams (creates new folder)
-python train.py --batch_size 32 --lr 0.01
+ml-train --batch_size 32 --lr 0.01
 
 # Option 3: Resume training
-python train.py --resume runs/batch_32/last.pt
+ml-train --resume runs/batch_32/last.pt
 ```
 
 ### Override Not Taking Effect
@@ -367,9 +375,9 @@ python train.py --resume runs/batch_32/last.pt
 **Solution:**
 ```bash
 # Check you're using correct argument name
-python train.py --lr 0.01  # ✅ Correct
+ml-train --lr 0.01  # ✅ Correct
 
-python train.py --learning_rate 0.01  # ❌ Wrong (not supported)
+ml-train --learning_rate 0.01  # ❌ Wrong (not supported)
 
 # Verify in saved config
 cat runs/{run_name}/config.yaml
@@ -385,7 +393,7 @@ cat runs/{run_name}/config.yaml
 # configs/custom_transforms.yaml
 # ... your changes ...
 
-python train.py --config configs/custom_transforms.yaml
+ml-train --config configs/custom_transforms.yaml
 
 # Option 2: Modify base config temporarily
 # Edit ml_src/config.yaml directly
@@ -399,11 +407,11 @@ python train.py --config configs/custom_transforms.yaml
 
 ✅ Quick experimentation  
 ✅ No file editing  
-✅ Good for sweeps  
-❌ Limited to common params  
+✅ Good for sweeps
+❌ Limited to common params
 
 ```bash
-python train.py --lr 0.01 --batch_size 32
+ml-train --lr 0.01 --batch_size 32
 ```
 
 ### Custom Config Files
@@ -411,10 +419,10 @@ python train.py --lr 0.01 --batch_size 32
 ✅ Full control  
 ✅ Version controlled  
 ✅ Shareable  
-❌ Requires file creation  
+❌ Requires file creation
 
 ```bash
-python train.py --config configs/experiment1.yaml
+ml-train --config configs/experiment1.yaml
 ```
 
 ### Hybrid Approach (Recommended)
@@ -423,7 +431,7 @@ python train.py --config configs/experiment1.yaml
 
 ```bash
 # Base config + targeted overrides
-python train.py --config configs/base.yaml --lr 0.01
+ml-train --config configs/base.yaml --lr 0.01
 ```
 
 ---
@@ -434,9 +442,9 @@ python train.py --config configs/base.yaml --lr 0.01
 
 ```bash
 # Train multiple experiments
-python train.py --lr 0.001
-python train.py --lr 0.01
-python train.py --lr 0.1
+ml-train --lr 0.001
+ml-train --lr 0.01
+ml-train --lr 0.1
 
 # Compare in TensorBoard
 tensorboard --logdir runs/
@@ -448,8 +456,8 @@ tensorboard --logdir runs/
 
 ```bash
 # Parallel training (if you have multiple GPUs)
-python train.py --device cuda:0 --lr 0.001 &
-python train.py --device cuda:1 --lr 0.01 &
+ml-train --device cuda:0 --lr 0.001 &
+ml-train --device cuda:1 --lr 0.01 &
 wait
 ```
 
@@ -461,7 +469,7 @@ import subprocess
 learning_rates = [0.0001, 0.001, 0.01, 0.1]
 
 for lr in learning_rates:
-    cmd = f"python train.py --lr {lr}"
+    cmd = f"ml-train --lr {lr}"
     subprocess.run(cmd, shell=True, check=True)
 ```
 
@@ -479,13 +487,13 @@ for lr in learning_rates:
 **Common Pattern:**
 ```bash
 # 1. Train baseline
-python train.py
+ml-train
 
 # 2. Experiment with one parameter
-python train.py --lr 0.01
+ml-train --lr 0.01
 
 # 3. Combine best settings
-python train.py --lr 0.01 --batch_size 32
+ml-train --lr 0.01 --batch_size 32
 
 # 4. Compare results
 tensorboard --logdir runs/
@@ -495,7 +503,7 @@ tensorboard --logdir runs/
 
 ## Related Documentation
 
-- [Configuration Overview](overview.md) - How config system works
+- [Configuration Overview](README.md) - How config system works
 - [All Configuration Options](../configuration/) - What you can override
 - [Training Guide](../user-guides/training.md) - Training workflows
 - [Hyperparameter Tuning](../user-guides/hyperparameter-tuning.md) - Systematic search
@@ -513,7 +521,7 @@ tensorboard --logdir runs/
 --resume <path>         # Resume training
 
 # Examples
-python train.py --batch_size 32
-python train.py --lr 0.01 --num_epochs 50
-python train.py --resume runs/base/last.pt
+ml-train --batch_size 32
+ml-train --lr 0.01 --num_epochs 50
+ml-train --resume runs/base/last.pt
 ```
