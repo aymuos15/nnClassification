@@ -7,13 +7,14 @@ import argparse
 import os
 
 import torch
-import yaml
 from loguru import logger
 from torch.utils.tensorboard import SummaryWriter
 
 from ml_src.core.checkpointing import load_checkpoint
-from ml_src.core.dataset import get_class_names, get_datasets
+from ml_src.core.config import load_config, override_config
+from ml_src.core.data import get_class_names, get_datasets
 from ml_src.core.loader import get_dataloaders, get_dataset_sizes
+from ml_src.core.logging import setup_logging
 from ml_src.core.loss import get_criterion
 from ml_src.core.metrics import (
     get_classification_report_str,
@@ -22,97 +23,10 @@ from ml_src.core.metrics import (
 )
 from ml_src.core.network import get_model, load_model
 from ml_src.core.optimizer import get_optimizer, get_scheduler
+from ml_src.core.run import create_run_dir
 from ml_src.core.seeding import set_seed
 from ml_src.core.test import test_model
 from ml_src.core.trainer import train_model
-
-
-def load_config(config_path):
-    """Load configuration from YAML file."""
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
-    return config
-
-
-def override_config(config, args):
-    """Override configuration with command-line arguments."""
-    overrides = []
-
-    if args.dataset_name:
-        config["data"]["dataset_name"] = args.dataset_name
-    if args.data_dir:
-        config["data"]["data_dir"] = args.data_dir
-    if args.batch_size:
-        config["training"]["batch_size"] = args.batch_size
-        overrides.append(f"batch_{args.batch_size}")
-    if args.num_workers is not None:
-        config["data"]["num_workers"] = args.num_workers
-    if args.num_epochs:
-        config["training"]["num_epochs"] = args.num_epochs
-        overrides.append(f"epochs_{args.num_epochs}")
-    if args.lr:
-        config["optimizer"]["lr"] = args.lr
-        overrides.append(f"lr_{args.lr}")
-    if args.momentum:
-        config["optimizer"]["momentum"] = args.momentum
-    if args.step_size:
-        config["scheduler"]["step_size"] = args.step_size
-    if args.gamma:
-        config["scheduler"]["gamma"] = args.gamma
-    if args.fold is not None:
-        config["data"]["fold"] = args.fold
-        overrides.append(f"fold_{args.fold}")
-
-    return config, overrides
-
-
-def create_run_dir(overrides, config, config_path):
-    """Create run directory based on config overrides and save config."""
-    dataset_name = config["data"].get("dataset_name", "dataset")
-
-    run_name = f"{dataset_name}_{'_'.join(overrides)}" if overrides else f"{dataset_name}_base"
-
-    run_dir = os.path.join("runs", run_name)
-    os.makedirs(run_dir, exist_ok=True)
-
-    # Save config to run directory
-    config_save_path = os.path.join(run_dir, "config.yaml")
-    with open(config_save_path, "w") as f:
-        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-    logger.success(f"Saved config to {config_save_path}")
-
-    # Create subdirectories
-    os.makedirs(os.path.join(run_dir, "logs"), exist_ok=True)
-    os.makedirs(os.path.join(run_dir, "weights"), exist_ok=True)
-    # TensorBoard directory will be created automatically by SummaryWriter
-
-    return run_dir
-
-
-def setup_logging(run_dir):
-    """Setup loguru logging to both console and file."""
-    # Remove default handler
-    logger.remove()
-
-    # Add colorized console handler
-    logger.add(
-        lambda msg: print(msg, end=""),
-        format="<cyan>{time:YYYY-MM-DD HH:mm:ss}</cyan> | <level>{level: <8}</level> | {message}",
-        colorize=True,
-        level="INFO",
-    )
-
-    # Add file handler (plain text, no colors)
-    log_path = os.path.join(run_dir, "logs", "train.log")
-    logger.add(
-        log_path,
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {message}",
-        rotation="10 MB",
-        retention="30 days",
-        level="DEBUG",
-    )
-
-    logger.info(f"Logging to {log_path}")
 
 
 def main():
@@ -158,10 +72,10 @@ def main():
     config, overrides = override_config(config, args)
 
     # Create run directory and save config
-    run_dir = create_run_dir(overrides, config, args.config)
+    run_dir = create_run_dir(overrides, config)
 
     # Setup logging (must be done after creating run_dir)
-    setup_logging(run_dir)
+    setup_logging(run_dir, filename="train.log")
 
     logger.info(f"Run directory: {run_dir}")
 

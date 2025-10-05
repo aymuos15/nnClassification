@@ -5,143 +5,19 @@ Configuration initialization script for creating dataset-specific configs.
 
 import argparse
 import os
-from pathlib import Path
 
 import yaml
 from loguru import logger
 
-
-def setup_logging():
-    """Setup loguru logging."""
-    logger.remove()
-    logger.add(
-        lambda msg: print(msg, end=""),
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
-        colorize=True,
-        level="INFO",
-    )
-
-
-def detect_dataset_info(data_dir):
-    """
-    Detect dataset information from directory structure.
-
-    Args:
-        data_dir: Path to dataset directory (should contain raw/ subdirectory)
-
-    Returns:
-        dict: Dataset information (name, num_classes, class_names)
-    """
-    data_path = Path(data_dir)
-
-    # Check if raw directory exists
-    raw_dir = data_path / "raw"
-    if not raw_dir.exists():
-        logger.error(f"Raw data directory not found: {raw_dir}")
-        logger.error("Expected structure: {data_dir}/raw/class1/, {data_dir}/raw/class2/, ...")
-        return None
-
-    # Detect classes from subdirectories
-    class_dirs = [d for d in raw_dir.iterdir() if d.is_dir() and not d.name.startswith('.')]
-
-    if len(class_dirs) == 0:
-        logger.error(f"No class directories found in {raw_dir}")
-        logger.error("Expected structure: {data_dir}/raw/class1/, {data_dir}/raw/class2/, ...")
-        return None
-
-    class_names = sorted([d.name for d in class_dirs])
-    num_classes = len(class_names)
-    dataset_name = data_path.name
-
-    return {
-        'dataset_name': dataset_name,
-        'num_classes': num_classes,
-        'class_names': class_names,
-        'data_dir': str(data_path)
-    }
-
-
-def create_config(dataset_info, template_path, architecture='resnet18',
-                 batch_size=4, num_epochs=25, lr=0.001, num_folds=5):
-    """
-    Create configuration from template with dataset-specific values.
-
-    Args:
-        dataset_info: Dictionary with dataset information
-        template_path: Path to config template
-        architecture: Model architecture name
-        batch_size: Training batch size
-        num_epochs: Number of training epochs
-        lr: Learning rate
-        num_folds: Number of cross-validation folds
-
-    Returns:
-        dict: Configuration dictionary
-    """
-    # Load template
-    with open(template_path) as f:
-        config = yaml.safe_load(f)
-
-    # Update with dataset-specific values
-    config['data']['dataset_name'] = dataset_info['dataset_name']
-    config['data']['data_dir'] = dataset_info['data_dir']
-    config['data']['fold'] = 0  # Default to fold 0
-
-    config['model']['num_classes'] = dataset_info['num_classes']
-    config['model']['architecture'] = architecture
-
-    config['training']['batch_size'] = batch_size
-    config['training']['num_epochs'] = num_epochs
-
-    config['optimizer']['lr'] = lr
-
-    return config
-
-
-def prompt_user_settings():
-    """
-    Prompt user for configuration settings interactively.
-
-    Returns:
-        dict: User-selected settings
-    """
-    print("\n" + "="*60)
-    print("Configuration Settings")
-    print("="*60 + "\n")
-
-    # Architecture
-    print("Model Architecture:")
-    print("  Popular choices: resnet18, resnet50, efficientnet_b0, mobilenet_v2, vit_b_16")
-    architecture = input("  Architecture [resnet18]: ").strip() or "resnet18"
-
-    # Batch size
-    batch_size = input("  Batch size [4]: ").strip()
-    batch_size = int(batch_size) if batch_size else 4
-
-    # Epochs
-    num_epochs = input("  Number of epochs [25]: ").strip()
-    num_epochs = int(num_epochs) if num_epochs else 25
-
-    # Learning rate
-    lr = input("  Learning rate [0.001]: ").strip()
-    lr = float(lr) if lr else 0.001
-
-    # Number of folds
-    num_folds = input("  Number of CV folds (for splitting) [5]: ").strip()
-    num_folds = int(num_folds) if num_folds else 5
-
-    return {
-        'architecture': architecture,
-        'batch_size': batch_size,
-        'num_epochs': num_epochs,
-        'lr': lr,
-        'num_folds': num_folds
-    }
+from ml_src.core.config import create_config
+from ml_src.core.data import detect_dataset_info
+from ml_src.core.logging import setup_logging
+from ml_src.core.ui import prompt_user_settings
 
 
 def main():
     """Main function for config initialization."""
-    setup_logging()
+    setup_logging()  # Console only
 
     parser = argparse.ArgumentParser(
         description="Initialize configuration for a dataset",
