@@ -29,8 +29,9 @@ Complete reference for all modules in the `ml_src/` package.
 | `network/custom.py` | Custom models | SimpleCNN, TinyNet |
 | `optimizer.py` | Optimization | get_optimizer, get_scheduler |
 | `seeding.py` | Reproducibility | set_seed, seed_worker |
-| `test.py` | Evaluation | test_model |
-| `trainer.py` | Training loop | train_model |
+| `test.py` | Evaluation | evaluate_model (legacy wrapper) |
+| `inference/` | Inference strategies | StandardInference, MixedPrecisionInference, AccelerateInference |
+| `trainers/` | Training strategies | StandardTrainer, MixedPrecisionTrainer, AccelerateTrainer, DPTrainer |
 
 ### Configuration
 
@@ -385,12 +386,14 @@ DataLoader(..., worker_init_fn=seed_worker)
 
 ## test.py
 
-**Purpose:** Model evaluation.
+**Purpose:** Legacy evaluation wrapper (backward compatibility).
+
+**Note:** This module is maintained for backward compatibility. New code should use the inference strategies in `ml_src.core.inference` instead.
 
 ### Functions
 
-#### `test_model(model, dataloader, device, class_names=None)`
-Evaluates model on dataset.
+#### `evaluate_model(model, dataloader, dataset_size, device, class_names=None)`
+Evaluates model on dataset using StandardInference internally.
 
 **Returns:**
 - Overall accuracy
@@ -398,24 +401,223 @@ Evaluates model on dataset.
 
 **Usage:**
 ```python
-accuracy, results = test_model(
+from ml_src.core.test import evaluate_model
+
+accuracy, results = evaluate_model(
     model=model,
     dataloader=test_loader,
+    dataset_size=len(test_dataset),
     device='cuda:0',
     class_names=['ants', 'bees']
 )
 ```
 
+**Recommended:** Use inference strategies directly:
+```python
+from ml_src.core.inference import get_inference_strategy
+
+strategy = get_inference_strategy(config)
+accuracy, results = strategy.run_inference(
+    model, test_loader, len(test_dataset), device, class_names
+)
+```
+
 ---
 
-## trainer.py
+## inference/
 
-**Purpose:** Main training loop.
+**Purpose:** Specialized inference strategies for different hardware and performance requirements.
 
-### Functions
+### Module Structure
 
-#### `train_model(model, criterion, optimizer, scheduler, dataloaders, ...)`
-Complete training loop.
+```
+inference/
+├── __init__.py           # get_inference_strategy() factory
+├── base.py               # BaseInferenceStrategy abstract class
+├── standard.py           # StandardInference
+├── mixed_precision.py    # MixedPrecisionInference (PyTorch AMP)
+└── accelerate.py         # AccelerateInference (multi-GPU)
+```
+
+### Factory Function
+
+#### `get_inference_strategy(config)`
+Creates appropriate inference strategy based on config.
+
+**Config:**
+```yaml
+inference:
+  strategy: 'standard'  # or 'mixed_precision', 'accelerate'
+  amp_dtype: 'float16'  # for mixed_precision
+```
+
+**Usage:**
+```python
+from ml_src.core.inference import get_inference_strategy
+
+strategy = get_inference_strategy(config)
+test_acc, results = strategy.run_inference(
+    model=model,
+    dataloader=test_loader,
+    dataset_size=len(test_dataset),
+    device=device,
+    class_names=['ants', 'bees']
+)
+```
+
+### Inference Strategies
+
+#### StandardInference
+Standard PyTorch inference without optimizations.
+
+**Use when:**
+- Running on CPU
+- Simplicity is priority
+
+#### MixedPrecisionInference
+Uses PyTorch AMP for 2-3x faster inference.
+
+**Use when:**
+- Running on modern NVIDIA GPU
+- Speed is important
+- Recommended for production on GPU
+
+**Performance:**
+- 2-3x faster than standard
+- 50% less memory usage
+- Minimal accuracy impact
+
+#### AccelerateInference
+Distributed inference across multiple GPUs.
+
+**Use when:**
+- Multiple GPUs available
+- Very large test sets
+
+**Requirements:**
+```bash
+pip install accelerate
+```
+
+---
+
+## trainers/
+
+**Purpose:** Specialized training strategies for different hardware and requirements.
+
+### Module Structure
+
+```
+trainers/
+├── __init__.py              # get_trainer() factory
+├── base.py                  # BaseTrainer abstract class
+├── standard.py              # StandardTrainer
+├── mixed_precision.py       # MixedPrecisionTrainer (PyTorch AMP)
+├── accelerate.py            # AccelerateTrainer (multi-GPU)
+└── differential_privacy.py  # DPTrainer (Opacus)
+```
+
+### Factory Function
+
+#### `get_trainer(config, model, criterion, optimizer, scheduler, dataloaders, dataset_sizes, device, run_dir, class_names)`
+Creates appropriate trainer based on config.
+
+**Config:**
+```yaml
+training:
+  trainer_type: 'standard'  # or 'mixed_precision', 'accelerate', 'dp'
+
+  # Mixed precision settings
+  amp_dtype: 'float16'
+
+  # Accelerate settings
+  gradient_accumulation_steps: 1
+
+  # Differential privacy settings
+  dp:
+    noise_multiplier: 1.1
+    max_grad_norm: 1.0
+    target_epsilon: 3.0
+    target_delta: 1e-5
+```
+
+**Usage:**
+```python
+from ml_src.core.trainers import get_trainer
+
+trainer = get_trainer(
+    config=config,
+    model=model,
+    criterion=criterion,
+    optimizer=optimizer,
+    scheduler=scheduler,
+    dataloaders=dataloaders,
+    dataset_sizes=dataset_sizes,
+    device=device,
+    run_dir=run_dir,
+    class_names=class_names
+)
+
+model, train_losses, val_losses, train_accs, val_accs = trainer.train()
+```
+
+### Training Strategies
+
+#### StandardTrainer
+Traditional PyTorch training.
+
+**Use when:**
+- Beginners or CPU training
+- Simple workflows
+- Default choice
+
+#### MixedPrecisionTrainer
+PyTorch AMP for 2-3x faster training.
+
+**Use when:**
+- Single modern GPU
+- Recommended for most production use cases
+
+**Performance:**
+- 2-3x faster than standard
+- 50% less memory usage
+- Minimal accuracy impact
+
+#### AccelerateTrainer
+Multi-GPU/distributed training with Hugging Face Accelerate.
+
+**Use when:**
+- Multiple GPUs available
+- Distributed training needed
+
+**Requirements:**
+```bash
+pip install accelerate
+accelerate config  # One-time setup
+```
+
+**Launch:**
+```bash
+accelerate launch ml-train --config config.yaml
+```
+
+#### DPTrainer
+Differential privacy training with Opacus.
+
+**Use when:**
+- Privacy-sensitive data
+- Formal privacy guarantees required
+
+**Requirements:**
+```bash
+pip install opacus
+```
+
+**Features:**
+- Privacy budget tracking (epsilon, delta)
+- DP-SGD algorithm
+- Gradient clipping
+- Per-sample gradient computation
 
 **Responsibilities:**
 - Train for all epochs

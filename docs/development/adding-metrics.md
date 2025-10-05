@@ -123,5 +123,5 @@ def save_roc_curve(true_labels, pred_probs, class_names, path):
 ## Related
 
 - [Metrics Module](../architecture/ml-src-modules.md#metricspy)
-- [Trainer Module](../architecture/ml-src-modules.md#trainerpy)
+- [Trainers Module](../architecture/ml-src-modules.md#trainers)
 EOF6

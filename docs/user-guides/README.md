@@ -23,6 +23,7 @@ Learn how to train models from scratch, including:
 - Basic training with default settings
 - Cross-validation workflows using the fold system
 - Multi-fold training strategies
+- Trainer selection (standard, mixed precision, multi-GPU, DP)
 - Configuration management
 - Monitoring progress during training
 - Understanding training outputs and checkpoints
@@ -31,7 +32,23 @@ Learn how to train models from scratch, including:
 
 ---
 
-### 2. [Inference Guide](inference.md)
+### 2. [Advanced Training Guide](advanced-training.md)
+**Specialized trainers for high-performance and privacy-preserving training**
+
+Master advanced training techniques:
+- Mixed Precision training (2-3x speedup with PyTorch AMP)
+- Multi-GPU/distributed training with Accelerate
+- Differential Privacy training with Opacus
+- Combining techniques for maximum performance
+- Trainer selection decision tree
+- Performance expectations and benchmarks
+- Troubleshooting advanced trainers
+
+**Start here if you're:** Need faster training, have multiple GPUs, or require privacy guarantees.
+
+---
+
+### 3. [Inference Guide](inference.md)
 **Running evaluation on trained models**
 
 Evaluate model performance on test data:
@@ -46,7 +63,7 @@ Evaluate model performance on test data:
 
 ---
 
-### 3. [Resuming Training Guide](resuming-training.md)
+### 4. [Resuming Training Guide](resuming-training.md)
 **Continue interrupted or extend completed training runs**
 
 Master checkpoint resumption:
@@ -61,7 +78,7 @@ Master checkpoint resumption:
 
 ---
 
-### 4. [Monitoring Guide](monitoring.md)
+### 5. [Monitoring Guide](monitoring.md)
 **TensorBoard integration and training visualization**
 
 Track and visualize training progress:
@@ -77,7 +94,7 @@ Track and visualize training progress:
 
 ---
 
-### 5. [Hyperparameter Tuning Guide](hyperparameter-tuning.md)
+### 6. [Hyperparameter Tuning Guide](hyperparameter-tuning.md)
 **Systematic search for optimal hyperparameters**
 
 Optimize model performance:
@@ -214,11 +231,13 @@ ml-visualise --mode predictions --run_dir runs/my_dataset_base_fold_0 --split va
 3. [Inference Guide](inference.md) - Evaluate results
 4. [Resuming Training](resuming-training.md) - Handle interruptions
 5. [Hyperparameter Tuning](hyperparameter-tuning.md) - Optimize performance
+6. [Advanced Training](advanced-training.md) - Specialized trainers (when ready)
 
 ### For Experienced Users
 **Quick reference:**
 - Jump directly to the guide matching your current task
 - Use the [Quick Command Reference](#quick-command-reference) above
+- See [Advanced Training Guide](advanced-training.md) for performance optimization
 - Refer to specific sections within guides as needed
 
 ### For Troubleshooting

@@ -510,10 +510,25 @@ logger.info(f"Loaded model from {checkpoint_path}")
 #### 5. Run Inference
 
 ```python
-# Evaluate on test set
-test_acc, results = test_model(
+# Option 1: Use inference strategy (recommended)
+from ml_src.core.inference import get_inference_strategy
+
+strategy = get_inference_strategy(config)
+test_acc, results = strategy.run_inference(
     model=model,
     dataloader=test_loader,
+    dataset_size=len(test_dataset),
+    device=device,
+    class_names=class_names
+)
+
+# Option 2: Use legacy wrapper
+from ml_src.core.test import evaluate_model
+
+test_acc, results = evaluate_model(
+    model=model,
+    dataloader=test_loader,
+    dataset_size=len(test_dataset),
     device=device,
     class_names=class_names
 )

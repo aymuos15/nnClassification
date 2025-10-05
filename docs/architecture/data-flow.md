@@ -353,7 +353,8 @@ ml-inference (ml_src/cli/inference.py)
     │
     ├─► core.network.load_model()
     │
-    ├─► core.test.test_model()
+    ├─► core.inference.get_inference_strategy()
+    │   └─► StandardInference.run_inference() / MixedPrecisionInference.run_inference() / AccelerateInference.run_inference()
     │
     └─► core.metrics.save_confusion_matrix()
         core.metrics.save_classification_report()

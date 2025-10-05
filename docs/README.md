@@ -38,7 +38,8 @@ Complete configuration reference:
 
 Practical workflows and how-tos:
 
-- **[Training](user-guides/training.md)** - Training workflows
+- **[Training](user-guides/training.md)** - Training workflows & trainer selection
+- **[Advanced Training](user-guides/advanced-training.md)** - Mixed precision, multi-GPU, DP
 - **[Inference](user-guides/inference.md)** - Running evaluation
 - **[Resuming Training](user-guides/resuming-training.md)** - Continue interrupted runs
 - **[Monitoring](user-guides/monitoring.md)** - TensorBoard & logging

@@ -13,6 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from ml_src.core.config import load_config
 from ml_src.core.data import get_class_names, get_datasets
+from ml_src.core.inference import get_inference_strategy
 from ml_src.core.loader import get_dataloaders, get_dataset_sizes
 from ml_src.core.logging import setup_logging
 from ml_src.core.metrics import (
@@ -22,7 +23,6 @@ from ml_src.core.metrics import (
 )
 from ml_src.core.network import get_model, load_model
 from ml_src.core.run import get_run_dir_from_checkpoint
-from ml_src.core.test import test_model
 from ml_src.core.ui import display_inference_results
 
 
@@ -122,7 +122,10 @@ Examples:
     logger.info("Running Inference")
     logger.info("=" * 50)
 
-    test_acc, per_sample_results = test_model(
+    # Get inference strategy from config
+    strategy = get_inference_strategy(config)
+
+    test_acc, per_sample_results = strategy.run_inference(
         model=model,
         dataloader=dataloaders["test"],
         dataset_size=dataset_sizes["test"],

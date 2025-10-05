@@ -352,6 +352,165 @@ ml-train --resume runs/hymenoptera_base_fold_0/last.pt --num_epochs 100
 
 ---
 
+## Trainer Selection
+
+The framework supports multiple specialized trainers optimized for different use cases. Each trainer provides unique capabilities while maintaining a consistent interface.
+
+### Available Trainers
+
+| Trainer Type | Use Case | Requirements | Speed | Complexity |
+|--------------|----------|--------------|-------|------------|
+| `standard` | Beginners, single GPU, simple workflows | None | Baseline | Low |
+| `mixed_precision` | Faster training, memory savings | CUDA GPU | 2-3x faster | Low |
+| `accelerate` | Multi-GPU, distributed, TPU | `accelerate` package | Variable | Medium |
+| `dp` | Privacy-sensitive data, research | `opacus` package | Slower | High |
+
+### Configuration
+
+Set the trainer type in your config file:
+
+```yaml
+training:
+  trainer_type: 'standard'  # Options: 'standard', 'mixed_precision', 'accelerate', 'dp'
+```
+
+**Default behavior:** If `trainer_type` is not specified, the framework uses `standard` trainer.
+
+### Trainer-Specific Examples
+
+#### Standard Trainer (Default)
+
+Traditional PyTorch training - simple and reliable:
+
+```yaml
+training:
+  trainer_type: 'standard'
+  num_epochs: 50
+  batch_size: 32
+```
+
+```bash
+ml-train --config configs/my_config.yaml
+```
+
+**Use when:**
+- Learning the framework
+- CPU-only environment
+- Simple single-GPU workflows
+- No special requirements
+
+#### Mixed Precision Trainer
+
+Automatic Mixed Precision (AMP) for faster training with reduced memory:
+
+```yaml
+training:
+  trainer_type: 'mixed_precision'
+  amp_dtype: 'float16'  # Options: 'float16', 'bfloat16'
+  num_epochs: 50
+  batch_size: 64  # Can use larger batch sizes due to memory savings
+```
+
+```bash
+ml-train --config configs/my_config.yaml
+```
+
+**Use when:**
+- Have modern NVIDIA GPU (Volta/Turing/Ampere or newer)
+- Want 2-3x faster training
+- Need to fit larger batches in memory
+- Memory is a constraint
+
+**Benefits:**
+- 2-3x training speedup on compatible GPUs
+- 50% memory reduction
+- Minimal accuracy impact
+- Easy to enable (just change config)
+
+#### Accelerate Trainer
+
+Multi-GPU and distributed training with Hugging Face Accelerate:
+
+```yaml
+training:
+  trainer_type: 'accelerate'
+  num_epochs: 50
+  batch_size: 32  # Per-device batch size
+  gradient_accumulation_steps: 2  # Optional
+```
+
+**One-time setup:**
+```bash
+pip install accelerate
+accelerate config  # Interactive configuration
+```
+
+**Launch training:**
+```bash
+# Single GPU (same as standard)
+ml-train --config configs/my_config.yaml
+
+# Multi-GPU
+accelerate launch ml-train --config configs/my_config.yaml
+
+# Distributed across nodes
+accelerate launch --multi_gpu --num_processes 4 ml-train --config configs/my_config.yaml
+```
+
+**Use when:**
+- Have multiple GPUs
+- Training on TPU
+- Need distributed training across machines
+- Want gradient accumulation
+- Scaling to larger datasets
+
+#### Differential Privacy Trainer
+
+Training with privacy guarantees using Opacus:
+
+```yaml
+training:
+  trainer_type: 'dp'
+  num_epochs: 50
+  batch_size: 32
+  dp:
+    noise_multiplier: 1.1  # Higher = more privacy, lower accuracy
+    max_grad_norm: 1.0     # Gradient clipping threshold
+    target_epsilon: 3.0    # Privacy budget (lower = stronger privacy)
+    target_delta: 1e-5     # Privacy parameter (typically 1/n_samples)
+```
+
+```bash
+pip install opacus
+ml-train --config configs/my_config.yaml
+```
+
+**Use when:**
+- Training on sensitive/private data (medical, financial)
+- Need formal privacy guarantees
+- Research on differential privacy
+- Regulatory compliance requirements
+
+**Note:** DP training is slower and may require hyperparameter tuning for good accuracy.
+
+### Quick Decision Guide
+
+```
+Need privacy guarantees? → Yes → dp
+                         ↓ No
+Have multiple GPUs? → Yes → accelerate
+                     ↓ No
+Have single GPU? → Yes → mixed_precision (recommended)
+                  ↓ No (CPU only)
+StandardTrainer
+```
+
+**For most users:** Start with `standard` trainer. Once comfortable, switch to `mixed_precision` for faster training on GPU.
+
+**For advanced users:** See [Advanced Training Guide](advanced-training.md) for detailed documentation on each specialized trainer.
+
+---
+
 ## Advanced Options
 
 ### Custom Configuration File

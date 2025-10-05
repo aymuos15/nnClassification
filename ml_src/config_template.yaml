@@ -19,9 +19,56 @@ data:
 
 # Training configuration
 training:
+  # Trainer type: Selects the training strategy
+  # Options: 'standard', 'mixed_precision', 'accelerate', 'dp'
+  # - 'standard': Traditional PyTorch training (default, backward compatible)
+  # - 'mixed_precision': Automatic Mixed Precision (AMP) training for faster training with reduced memory
+  # - 'accelerate': HuggingFace Accelerate for multi-GPU/distributed training
+  # - 'dp': Differential privacy training with Opacus (requires: pip install opacus)
+  # Can be omitted - defaults to 'standard'
+  trainer_type: 'standard'
+
+  # Mixed precision settings (only used when trainer_type: 'mixed_precision')
+  # amp_dtype: 'float16'  # Options: 'float16' (faster, default) or 'bfloat16' (more stable)
+  # Note: Mixed precision requires CUDA. Falls back to standard training on CPU.
+
+  # Accelerate settings (only used when trainer_type: 'accelerate')
+  # gradient_accumulation_steps: 1  # Accumulate gradients over N batches (useful for large models)
+  # Usage:
+  #   Single device: python ml-train --config config.yaml
+  #   Multi-GPU: accelerate launch ml-train --config config.yaml
+  # Note: Multi-GPU requires one-time setup with `accelerate config`
+
+  # Differential privacy settings (only used when trainer_type: 'dp')
+  # Requires installation: pip install opacus OR pip install -e ".[dp]"
+  # dp:
+  #   noise_multiplier: 1.1  # Privacy noise level (higher = more privacy, lower utility)
+  #   max_grad_norm: 1.0     # Gradient clipping threshold (lower = more privacy)
+  #   target_epsilon: 3.0    # Privacy budget target (lower = stronger privacy, < 10 recommended)
+  #   target_delta: 1e-5     # Privacy delta (typically 1/dataset_size)
+  # Privacy-Utility Tradeoff:
+  #   - Epsilon < 1: Very strong privacy (high utility loss)
+  #   - Epsilon 1-10: Good privacy-utility balance
+  #   - Epsilon > 10: Weaker privacy guarantees
+  # Note: Training with DP is slower and may require more epochs for convergence
+
   batch_size: 4
   num_epochs: 3
   device: 'cuda:0'  # Will fallback to cpu if cuda not available
+
+# Inference settings
+inference:
+  # Inference strategy: Selects the inference optimization strategy
+  # Options: 'standard', 'mixed_precision', 'accelerate'
+  # - 'standard': Traditional PyTorch inference (default, backward compatible, works on CPU/GPU)
+  # - 'mixed_precision': Automatic Mixed Precision (AMP) inference for 2-3x speedup on GPU
+  # - 'accelerate': HuggingFace Accelerate for multi-GPU/distributed inference
+  # Can be omitted - defaults to 'standard'
+  strategy: 'standard'
+
+  # Mixed precision inference settings (only used when strategy: 'mixed_precision')
+  # amp_dtype: 'float16'  # Options: 'float16' (faster, default) or 'bfloat16' (more stable)
+  # Note: Mixed precision requires CUDA. Falls back to standard inference on CPU.
 
 # Optimizer configuration
 optimizer:

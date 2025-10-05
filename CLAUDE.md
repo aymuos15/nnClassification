@@ -77,7 +77,7 @@ ml-visualise --mode launch --run_dir runs/my_run
 ml_src/
 ├── cli/                    # CLI entry points (installed as console scripts)
 │   ├── init_config.py      # ml-init-config: Generate dataset configs
-│   ├── train.py            # ml-train: Main training orchestrator
+│   ├── train.py            # ml-train: Main training orchestrator (uses get_trainer)
 │   ├── inference.py        # ml-inference: Test/inference runner
 │   ├── splitting.py        # ml-split: CV split generator
 │   └── visualise.py        # ml-visualise: TensorBoard utilities
@@ -89,9 +89,15 @@ ml_src/
     │   ├── __init__.py     # get_model() API (routes base vs custom)
     │   ├── base.py         # Torchvision models (ResNet, EfficientNet, etc.)
     │   └── custom.py       # Custom architectures (SimpleCNN, TinyNet)
+    ├── trainers/           # Specialized trainer implementations
+    │   ├── __init__.py     # get_trainer() factory function
+    │   ├── base.py         # BaseTrainer abstract class
+    │   ├── standard.py     # StandardTrainer: Traditional PyTorch training
+    │   ├── mixed_precision.py  # MixedPrecisionTrainer: PyTorch AMP
+    │   ├── accelerate.py   # AccelerateTrainer: Multi-GPU with Accelerate
+    │   └── differential_privacy.py  # DPTrainer: Opacus differential privacy
     ├── loss.py             # Loss functions
     ├── optimizer.py        # Optimizers and schedulers
-    ├── trainer.py          # Training loop
     ├── test.py             # Evaluation/testing
     ├── metrics.py          # Classification reports, confusion matrices
     ├── checkpointing.py    # Checkpoint save/load, summaries
@@ -113,7 +119,13 @@ ml_src/
    - `base.py` for torchvision models (requires `model.type: 'base'`, `model.architecture: 'resnet18'`)
    - `custom.py` for custom models (requires `model.type: 'custom'`, `model.custom_architecture: 'simple_cnn'`)
 
-5. **Run Directory Naming**: Auto-generated as `runs/{dataset_name}_{overrides}_fold_{N}/` where overrides include non-default parameters (e.g., `hymenoptera_batch_32_lr_0.01_fold_0`)
+5. **Trainer Selection**: `get_trainer(config, ...)` routes to specialized trainers:
+   - `standard.py` for traditional PyTorch training (default)
+   - `mixed_precision.py` for PyTorch AMP (requires `training.trainer_type: 'mixed_precision'`)
+   - `accelerate.py` for multi-GPU/distributed (requires `training.trainer_type: 'accelerate'`)
+   - `differential_privacy.py` for privacy-preserving training (requires `training.trainer_type: 'dp'`)
+
+6. **Run Directory Naming**: Auto-generated as `runs/{dataset_name}_{overrides}_fold_{N}/` where overrides include non-default parameters (e.g., `hymenoptera_batch_32_lr_0.01_fold_0`)
 
 ### Data Flow
 
@@ -122,11 +134,12 @@ ml_src/
    - Creates `IndexedImageDataset` for train/val/test splits
    - Test set is shared across all folds
 
-2. **Training** (`cli/train.py` → `core/trainer.py`):
+2. **Training** (`cli/train.py` → `core/trainers/`):
    - Loads config, overrides with CLI args
+   - Selects appropriate trainer via `get_trainer()` factory
    - Creates run directory with auto-generated name
    - Sets up logging (console + file + TensorBoard)
-   - Trains model, saves best/last checkpoints
+   - Trains model using selected trainer, saves best/last checkpoints
    - Auto-runs test evaluation after training completes
 
 3. **Checkpointing** (`core/checkpointing.py`):
@@ -135,6 +148,32 @@ ml_src/
    - Best model saved to `weights/best.pt`, last to `weights/last.pt`
 
 ## Critical Implementation Details
+
+### Trainer Types
+
+All trainers inherit from `BaseTrainer` and are selected via `config['training']['trainer_type']`.
+
+**Available trainers:**
+- `standard` (default) - Traditional PyTorch training
+- `mixed_precision` - PyTorch AMP for 2-3x speedup
+- `accelerate` - Multi-GPU/distributed with Hugging Face Accelerate
+- `dp` - Differential privacy with Opacus
+
+**Factory function:** `get_trainer(config, model, dataloaders, criterion, optimizer, scheduler, device, run_dir, num_classes)`
+
+**Example config:**
+```yaml
+training:
+  trainer_type: 'mixed_precision'  # or 'standard', 'accelerate', 'dp'
+  amp_dtype: 'float16'  # for mixed_precision
+  num_epochs: 50
+```
+
+**When to use each:**
+- `standard`: Beginners, CPU, simple workflows
+- `mixed_precision`: Single modern GPU (most common for production)
+- `accelerate`: Multiple GPUs, distributed training
+- `dp`: Privacy-sensitive data requiring formal guarantees
 
 ### Adding New Models
 
@@ -208,11 +247,70 @@ deterministic: false  # true for full reproducibility (slower)
 
 ## Common Workflows
 
+### Choosing a Trainer
+
+**Standard Training** (default):
+```yaml
+training:
+  trainer_type: 'standard'
+```
+No special requirements, works on CPU or GPU. Best for beginners and simple workflows.
+
+**Mixed Precision** (2-3x faster on GPU):
+```yaml
+training:
+  trainer_type: 'mixed_precision'
+  amp_dtype: 'float16'  # or 'bfloat16' for newer GPUs (A100, RTX 40)
+```
+Requires modern NVIDIA GPU (Volta/Turing/Ampere or newer). Provides significant speedup with minimal accuracy impact.
+
+**Multi-GPU/Distributed**:
+```bash
+# One-time setup
+pip install accelerate
+accelerate config
+
+# Launch training
+accelerate launch ml-train --config configs/my_config.yaml
+```
+Config:
+```yaml
+training:
+  trainer_type: 'accelerate'
+  batch_size: 32  # Per-device batch size
+  gradient_accumulation_steps: 2  # Optional: for larger effective batches
+```
+Requires `accelerate` package. Supports multi-GPU, distributed training, and TPU.
+
+**Differential Privacy**:
+```bash
+pip install opacus
+```
+Config:
+```yaml
+training:
+  trainer_type: 'dp'
+  dp:
+    noise_multiplier: 1.1      # Privacy-accuracy tradeoff
+    max_grad_norm: 1.0         # Gradient clipping
+    target_epsilon: 3.0        # Privacy budget (lower = stronger privacy)
+    target_delta: 1e-5         # Privacy parameter
+```
+For privacy-sensitive data (medical, financial). Slower and requires hyperparameter tuning.
+
+**Decision guide:**
+- Need privacy guarantees? → `dp`
+- Have multiple GPUs? → `accelerate`
+- Have single GPU? → `mixed_precision` (recommended)
+- CPU only or learning? → `standard`
+
+See [Advanced Training Guide](docs/user-guides/advanced-training.md) for detailed documentation.
+
 ### Training a New Dataset
 1. Organize data in `data/{name}/raw/class1/`, `data/{name}/raw/class2/`, etc.
 2. Run `ml-split --raw_data data/{name}/raw --folds 5`
 3. Run `ml-init-config data/{name}` → creates `configs/{name}_config.yaml`
-4. Edit config if needed (model architecture, hyperparameters)
+4. Edit config if needed (model architecture, hyperparameters, trainer type)
 5. Run `ml-train --config configs/{name}_config.yaml`
 
 ### Resuming Training

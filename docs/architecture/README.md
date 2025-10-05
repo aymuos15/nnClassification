@@ -144,8 +144,9 @@ The project is configured for the Hymenoptera dataset (ants vs bees classificati
 | `metrics.py` | Evaluation | save_confusion_matrix, save_classification_report |
 | `optimizer.py` | Optimization | get_optimizer, get_scheduler |
 | `seeding.py` | Reproducibility | set_seed, seed_worker |
-| `test.py` | Model evaluation | test_model |
-| `trainer.py` | Training loop | train_model, collect_predictions |
+| `test.py` | Model evaluation | evaluate_model (legacy wrapper) |
+| `inference/` | Inference strategies | StandardInference, MixedPrecisionInference, AccelerateInference |
+| `trainers/` | Training strategies | StandardTrainer, MixedPrecisionTrainer, AccelerateTrainer, DPTrainer |
 
 **Configuration:**
 

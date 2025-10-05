@@ -1,12 +1,24 @@
-"""Testing module for model evaluation."""
+"""Testing module for model evaluation.
+
+Note: This module is maintained for backward compatibility.
+New code should use the inference strategies in ml_src.core.inference instead.
+"""
 
 import torch
 from loguru import logger
 
 
-def test_model(model, dataloader, dataset_size, device, class_names=None):
+def evaluate_model(model, dataloader, dataset_size, device, class_names=None):
     """
-    Test the model on the test dataset.
+    Evaluate the model on the test dataset.
+
+    Note:
+        This function is maintained for backward compatibility.
+        New code should use the inference strategies from ml_src.core.inference:
+
+        >>> from ml_src.core.inference import get_inference_strategy
+        >>> strategy = get_inference_strategy(config)
+        >>> acc, results = strategy.run_inference(model, loader, size, device, class_names)
 
     Args:
         model: The trained model to test
@@ -19,39 +31,8 @@ def test_model(model, dataloader, dataset_size, device, class_names=None):
         Tuple of (test_acc, per_sample_results)
         where per_sample_results is a list of (true_label, pred_label, is_correct)
     """
-    model.eval()  # Set model to evaluate mode
+    # Use StandardInference internally to avoid code duplication
+    from ml_src.core.inference.standard import StandardInference
 
-    running_corrects = 0
-    per_sample_results = []
-
-    # Iterate over data
-    for inputs, labels in dataloader:
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-
-        # Forward
-        with torch.no_grad():
-            outputs = model(inputs)
-            _, preds = torch.max(outputs, 1)
-
-        # Store per-sample results
-        for i in range(len(labels)):
-            true_label = labels[i].item()
-            pred_label = preds[i].item()
-            is_correct = pred_label == true_label
-
-            if class_names:
-                true_name = class_names[true_label]
-                pred_name = class_names[pred_label]
-                per_sample_results.append((true_name, pred_name, is_correct))
-            else:
-                per_sample_results.append((true_label, pred_label, is_correct))
-
-        # Statistics
-        running_corrects += torch.sum(preds == labels.data)
-
-    test_acc = running_corrects.double() / dataset_size
-
-    logger.info(f"Overall Test Acc: {test_acc:.4f}")
-
-    return test_acc, per_sample_results
+    strategy = StandardInference()
+    return strategy.run_inference(model, dataloader, dataset_size, device, class_names)

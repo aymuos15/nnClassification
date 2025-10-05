@@ -25,8 +25,8 @@ from ml_src.core.network import get_model, load_model
 from ml_src.core.optimizer import get_optimizer, get_scheduler
 from ml_src.core.run import create_run_dir
 from ml_src.core.seeding import set_seed
-from ml_src.core.test import test_model
-from ml_src.core.trainer import train_model
+from ml_src.core.test import evaluate_model
+from ml_src.core.trainers import get_trainer
 
 
 def main():
@@ -155,8 +155,9 @@ def main():
         start_epoch += 1
         logger.info(f"Resuming training from epoch {start_epoch}")
 
-    # Train the model
-    model, train_losses, val_losses, train_accs, val_accs = train_model(
+    # Create trainer
+    trainer = get_trainer(
+        config=config,
         model=model,
         criterion=criterion,
         optimizer=optimizer,
@@ -164,9 +165,12 @@ def main():
         dataloaders=dataloaders,
         dataset_sizes=dataset_sizes,
         device=device,
-        config=config,
         run_dir=run_dir,
         class_names=class_names,
+    )
+
+    # Train the model
+    model, train_losses, val_losses, train_accs, val_accs = trainer.train(
         start_epoch=start_epoch,
         resume_best_acc=resume_best_acc,
         resume_train_losses=resume_train_losses,
@@ -185,7 +189,7 @@ def main():
     model = load_model(model, best_checkpoint_path, device)
 
     # Run test evaluation
-    test_acc, per_sample_results = test_model(
+    test_acc, per_sample_results = evaluate_model(
         model=model,
         dataloader=dataloaders["test"],
         dataset_size=dataset_sizes["test"],
