@@ -1,5 +1,7 @@
 # PyTorch Image Classifier
 
+[![Documentation Status](https://readthedocs.org/projects/nnclassification/badge/?version=latest)](https://nnclassification.readthedocs.io/en/latest/)
+
 Production-ready image classification framework with flexible architecture support and index-based cross-validation. Supports training, resumption, and comprehensive evaluation.
 
 ## Quick Start
