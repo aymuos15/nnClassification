@@ -4,8 +4,6 @@ Note: This module is maintained for backward compatibility.
 New code should use the inference strategies in ml_src.core.inference instead.
 """
 
-import torch
-from loguru import logger
 
 
 def evaluate_model(model, dataloader, dataset_size, device, class_names=None):

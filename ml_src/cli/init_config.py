@@ -35,55 +35,42 @@ Examples:
 
   # Custom settings
   ml-init-config --data_dir data/my_dataset --architecture efficientnet_b0 --batch_size 32
-        """
+        """,
     )
 
     parser.add_argument(
-        '--data_dir',
+        "--data_dir",
         type=str,
         required=True,
-        help="Path to dataset directory (must contain raw/ subdirectory)"
+        help="Path to dataset directory (must contain raw/ subdirectory)",
     )
     parser.add_argument(
-        '--output',
+        "--output",
         type=str,
-        help="Output path for config file (default: configs/{dataset_name}_config.yaml)"
+        help="Output path for config file (default: configs/{dataset_name}_config.yaml)",
     )
     parser.add_argument(
-        '--yes', '-y',
-        action='store_true',
-        help="Non-interactive mode (use defaults)"
+        "--yes", "-y", action="store_true", help="Non-interactive mode (use defaults)"
     )
     parser.add_argument(
-        '--architecture',
+        "--architecture",
         type=str,
-        default='resnet18',
-        help="Model architecture (default: resnet18)"
+        default="resnet18",
+        help="Model architecture (default: resnet18)",
     )
     parser.add_argument(
-        '--batch_size',
-        type=int,
-        default=4,
-        help="Training batch size (default: 4)"
+        "--batch_size", type=int, default=4, help="Training batch size (default: 4)"
     )
     parser.add_argument(
-        '--num_epochs',
-        type=int,
-        default=25,
-        help="Number of training epochs (default: 25)"
+        "--num_epochs", type=int, default=25, help="Number of training epochs (default: 25)"
     )
-    parser.add_argument(
-        '--lr',
-        type=float,
-        default=0.001,
-        help="Learning rate (default: 0.001)"
-    )
+    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate (default: 0.001)")
 
     args = parser.parse_args()
 
-    logger.info("="*60)
+    logger.info("=" * 60)
     logger.info("Dataset Configuration Initialization")
-    logger.info("="*60)
+    logger.info("=" * 60)
 
     # Detect dataset information
     logger.info(f"Scanning dataset directory: {args.data_dir}")
@@ -99,21 +86,18 @@ Examples:
     # Get settings (interactive or from args)
     if args.yes:
         settings = {
-            'architecture': args.architecture,
-            'batch_size': args.batch_size,
-            'num_epochs': args.num_epochs,
-            'lr': args.lr,
-            'num_folds': 5
+            "architecture": args.architecture,
+            "batch_size": args.batch_size,
+            "num_epochs": args.num_epochs,
+            "lr": args.lr,
+            "num_folds": 5,
         }
         logger.info("Using default settings (non-interactive mode)")
     else:
         settings = prompt_user_settings()
 
     # Create config
-    template_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'config_template.yaml'
-    )
+    template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config_template.yaml")
 
     if not os.path.exists(template_path):
         logger.error(f"Config template not found: {template_path}")
@@ -126,7 +110,7 @@ Examples:
         output_path = args.output
     else:
         # Default: configs/{dataset_name}_config.yaml
-        configs_dir = 'configs'
+        configs_dir = "configs"
         os.makedirs(configs_dir, exist_ok=True)
         output_path = os.path.join(configs_dir, f"{dataset_info['dataset_name']}_config.yaml")
 
@@ -136,22 +120,22 @@ Examples:
         os.makedirs(output_dir, exist_ok=True)
 
     # Save config
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
     logger.success(f"Configuration saved to: {output_path}")
 
     # Print summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Configuration Summary")
-    print("="*60)
+    print("=" * 60)
     print(f"Dataset:      {dataset_info['dataset_name']}")
     print(f"Classes:      {dataset_info['num_classes']} ({', '.join(dataset_info['class_names'])})")
     print(f"Architecture: {settings['architecture']}")
     print(f"Batch size:   {settings['batch_size']}")
     print(f"Epochs:       {settings['num_epochs']}")
     print(f"Learning rate: {settings['lr']}")
-    print("="*60)
+    print("=" * 60)
 
     # Print next steps
     print("\nNext steps:")
@@ -160,5 +144,5 @@ Examples:
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

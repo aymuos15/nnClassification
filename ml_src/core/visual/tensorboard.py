@@ -164,8 +164,6 @@ def visualize_predictions(run_dir, config, checkpoint="best.pt", split="val", nu
 
     writer.close()
 
-    logger.success(
-        f"Logged {len(images)} predictions to TensorBoard (Accuracy: {accuracy:.2%})"
-    )
+    logger.success(f"Logged {len(images)} predictions to TensorBoard (Accuracy: {accuracy:.2%})")
     logger.info("Green border = Correct prediction, Red border = Incorrect prediction")
     logger.info(f"View in TensorBoard: tensorboard --logdir {run_dir}/tensorboard")

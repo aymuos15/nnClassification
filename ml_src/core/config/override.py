@@ -40,5 +40,21 @@ def override_config(config, args):
     if hasattr(args, "fold") and args.fold is not None:
         config["data"]["fold"] = args.fold
         overrides.append(f"fold_{args.fold}")
+    if hasattr(args, "early_stopping_patience") and args.early_stopping_patience is not None:
+        if "early_stopping" not in config["training"]:
+            config["training"]["early_stopping"] = {}
+        config["training"]["early_stopping"]["enabled"] = True
+        config["training"]["early_stopping"]["patience"] = args.early_stopping_patience
+        overrides.append(f"es_patience_{args.early_stopping_patience}")
+    if hasattr(args, "early_stopping_metric") and args.early_stopping_metric:
+        if "early_stopping" not in config["training"]:
+            config["training"]["early_stopping"] = {}
+        config["training"]["early_stopping"]["enabled"] = True
+        config["training"]["early_stopping"]["metric"] = args.early_stopping_metric
+        # Set appropriate mode for the metric
+        if args.early_stopping_metric == "val_acc":
+            config["training"]["early_stopping"]["mode"] = "max"
+        else:  # val_loss
+            config["training"]["early_stopping"]["mode"] = "min"
 
     return config, overrides

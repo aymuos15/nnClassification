@@ -95,12 +95,12 @@ Output structure:
         raw_path = Path(args.raw_data)
 
         # Check if path ends with 'raw'
-        if raw_path.name == 'raw':
+        if raw_path.name == "raw":
             # Replace last component 'raw' with 'splits'
-            output_dir = str(raw_path.parent / 'splits')
+            output_dir = str(raw_path.parent / "splits")
         else:
             # If not ending with 'raw', append '../splits' as sibling directory
-            output_dir = str(raw_path.parent / 'splits')
+            output_dir = str(raw_path.parent / "splits")
 
         logger.info(f"Auto-derived output directory: {output_dir}")
     else:

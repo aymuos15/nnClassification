@@ -1,6 +1,5 @@
 """Tests for inference strategies and factory."""
 
-import tempfile
 
 import pytest
 import torch

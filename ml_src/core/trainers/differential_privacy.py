@@ -118,8 +118,7 @@ class DPTrainer(BaseTrainer):
 
         logger.success("PrivacyEngine initialized successfully")
         logger.info(
-            f"Training with DP-SGD (noise={self.noise_multiplier}, "
-            f"clip={self.max_grad_norm})"
+            f"Training with DP-SGD (noise={self.noise_multiplier}, clip={self.max_grad_norm})"
         )
 
     def training_step(self, inputs, labels):
@@ -201,8 +200,7 @@ class DPTrainer(BaseTrainer):
         # Warn if target epsilon exceeded
         if epsilon > self.target_epsilon:
             logger.warning(
-                f"Privacy budget exceeded! Current ε={epsilon:.2f} > "
-                f"Target ε={self.target_epsilon}"
+                f"Privacy budget exceeded! Current ε={epsilon:.2f} > Target ε={self.target_epsilon}"
             )
 
     def save_checkpoint(self, epoch, best_acc, metrics, path):
@@ -212,6 +210,7 @@ class DPTrainer(BaseTrainer):
         Extends standard checkpointing to include:
         - PrivacyEngine state (for privacy accounting)
         - DP configuration parameters
+        - Early stopping state (if enabled)
 
         Args:
             epoch: Current epoch number
@@ -219,6 +218,11 @@ class DPTrainer(BaseTrainer):
             metrics: Dictionary containing train_losses, val_losses, train_accs, val_accs
             path: Path to save the checkpoint
         """
+        # Get early stopping state if enabled
+        early_stopping_state = None
+        if self.early_stopping is not None:
+            early_stopping_state = self.early_stopping.get_state()
+
         # First save the standard checkpoint
         save_checkpoint(
             model=self.model,
@@ -232,6 +236,7 @@ class DPTrainer(BaseTrainer):
             val_accs=metrics["val_accs"],
             config=self.config,
             checkpoint_path=path,
+            early_stopping_state=early_stopping_state,
         )
 
         # Load the checkpoint and add PrivacyEngine state
@@ -274,13 +279,27 @@ class DPTrainer(BaseTrainer):
             Tuple of (epoch, best_acc, train_losses, val_losses, train_accs, val_accs)
         """
         # Load standard checkpoint
-        epoch, best_acc, train_losses, val_losses, train_accs, val_accs, config = load_checkpoint(
+        (
+            epoch,
+            best_acc,
+            train_losses,
+            val_losses,
+            train_accs,
+            val_accs,
+            config,
+            early_stopping_state,
+        ) = load_checkpoint(
             checkpoint_path=path,
             model=self.model,
             optimizer=self.optimizer,
             scheduler=self.scheduler,
             device=self.device,
         )
+
+        # Restore early stopping state if available
+        if early_stopping_state is not None and self.early_stopping is not None:
+            self.early_stopping.load_state(early_stopping_state)
+            logger.success("Restored early stopping state from checkpoint")
 
         # Load PrivacyEngine state if available
         checkpoint = torch.load(path, map_location=self.device, weights_only=False)
@@ -291,10 +310,13 @@ class DPTrainer(BaseTrainer):
 
             # Note: PrivacyEngine accountant state is restored during prepare_training()
             # We just log the information here for transparency
-            if self.privacy_engine is not None and privacy_state.get("accountant") is not None:
-                if hasattr(self.privacy_engine, "accountant"):
-                    self.privacy_engine.accountant.load_state_dict(privacy_state["accountant"])
-                    logger.success("Restored PrivacyEngine accountant state")
+            if (
+                self.privacy_engine is not None
+                and privacy_state.get("accountant") is not None
+                and hasattr(self.privacy_engine, "accountant")
+            ):
+                self.privacy_engine.accountant.load_state_dict(privacy_state["accountant"])
+                logger.success("Restored PrivacyEngine accountant state")
 
         return epoch, best_acc, train_losses, val_losses, train_accs, val_accs
 
@@ -335,6 +357,7 @@ class DPTrainer(BaseTrainer):
         val_losses = resume_val_losses if resume_val_losses is not None else []
         train_accs = resume_train_accs if resume_train_accs is not None else []
         val_accs = resume_val_accs if resume_val_accs is not None else []
+        early_stop_triggered = False
 
         # Prepare for training (initializes PrivacyEngine)
         self.prepare_training()
@@ -370,9 +393,7 @@ class DPTrainer(BaseTrainer):
 
         # Training loop
         for epoch in range(start_epoch, self.num_epochs):
-            logger.opt(colors=True).info(
-                f"<yellow>Epoch {epoch}/{self.num_epochs - 1}</yellow>"
-            )
+            logger.opt(colors=True).info(f"<yellow>Epoch {epoch}/{self.num_epochs - 1}</yellow>")
             logger.opt(colors=True).info("<dim>" + "-" * 50 + "</dim>")
 
             # Each epoch has a training and validation phase
@@ -449,6 +470,27 @@ class DPTrainer(BaseTrainer):
                     self.save_checkpoint(epoch, best_acc, metrics, self.best_model_path)
                     logger.success(f"New best model saved! Acc: {best_acc:.4f}")
 
+                # Check early stopping
+                if phase == "val" and self.early_stopping is not None:
+                    metric_value = (
+                        epoch_acc.item() if self.early_stopping.metric == "val_acc" else epoch_loss
+                    )
+                    if self.early_stopping.should_stop(epoch, metric_value):
+                        # Save last checkpoint before stopping
+                        metrics = {
+                            "train_losses": train_losses,
+                            "val_losses": val_losses,
+                            "train_accs": train_accs,
+                            "val_accs": val_accs,
+                        }
+                        self.save_checkpoint(epoch, best_acc, metrics, self.last_model_path)
+                        early_stop_triggered = True
+                        logger.opt(colors=True).warning(
+                            f"<yellow>Early stopping at epoch {epoch}</yellow>. "
+                            f"Best accuracy: {best_acc:.4f} at epoch {best_epoch}"
+                        )
+                        break
+
             # Track privacy budget after each epoch
             self._track_privacy_budget(epoch)
 
@@ -482,11 +524,22 @@ class DPTrainer(BaseTrainer):
 
             logger.info("")
 
+            # Break outer loop if early stopping triggered
+            if early_stop_triggered:
+                break
+
         time_elapsed = time.time() - since
         end_time = time.time()
-        logger.success(
-            f"Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s"
-        )
+
+        # Log completion message
+        if early_stop_triggered:
+            logger.success(
+                f"Training stopped early in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s"
+            )
+        else:
+            logger.success(
+                f"Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s"
+            )
         logger.success(f"Best val Acc: {best_acc:.4f}")
 
         # Log final privacy budget
@@ -511,12 +564,13 @@ class DPTrainer(BaseTrainer):
         )
 
         # Log to TensorBoard
+        import os
+
         from ml_src.core.metrics import (
             get_classification_report_str,
             log_confusion_matrix_to_tensorboard,
             save_classification_report,
         )
-        import os
 
         log_confusion_matrix_to_tensorboard(
             self.writer,
@@ -526,9 +580,7 @@ class DPTrainer(BaseTrainer):
             "Confusion_Matrix/train",
             self.num_epochs - 1,
         )
-        train_report = get_classification_report_str(
-            train_labels, train_preds, self.class_names
-        )
+        train_report = get_classification_report_str(train_labels, train_preds, self.class_names)
         self.writer.add_text("Classification_Report/train", train_report, self.num_epochs - 1)
 
         # Save to files
@@ -564,10 +616,15 @@ class DPTrainer(BaseTrainer):
             os.path.join(self.run_dir, "logs", "classification_report_val.txt"),
         )
 
-        # Save final completed summary
+        # Save final summary
+        if early_stop_triggered:
+            stopped_epoch = self.early_stopping.stopped_epoch if self.early_stopping else epoch
+            final_status = f"early_stopped_epoch_{stopped_epoch}"
+        else:
+            final_status = "completed"
         save_summary(
             summary_path=self.summary_path,
-            status="completed",
+            status=final_status,
             config=self.config,
             device=str(self.device),
             dataset_sizes=self.dataset_sizes,

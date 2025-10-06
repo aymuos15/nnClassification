@@ -204,7 +204,7 @@ Epoch 25: train_loss=0.054, val_loss=0.162  # Overfitting! (stop)
    - Use 20-30 epochs initially
    - Check if converged, extend if needed
 
-2. **Use early stopping** (not currently implemented)
+2. **Use early stopping** (see [Early Stopping](#early-stopping))
    - Automatically stop when validation plateaus
    - Prevents wasting compute
 
@@ -426,6 +426,236 @@ training:
    - Always use GPU if available
    - Use CPU only for debugging or necessity
    - Monitor GPU utilization
+
+---
+
+## `early_stopping`
+
+- **Type:** Dictionary
+- **Default:** `enabled: false`
+- **Description:** Configuration for early stopping to prevent overfitting
+- **Purpose:** Automatically stop training when validation metric stops improving
+
+### Overview
+
+Early stopping monitors a validation metric (accuracy or loss) and stops training when the metric hasn't improved for a specified number of epochs (patience). This prevents overfitting and saves compute time.
+
+### Configuration Parameters
+
+```yaml
+training:
+  early_stopping:
+    enabled: false         # Enable/disable early stopping
+    patience: 10           # Epochs to wait for improvement
+    metric: 'val_acc'      # Metric to monitor
+    mode: 'max'            # 'max' or 'min'
+    min_delta: 0.0         # Minimum improvement threshold
+```
+
+### `enabled`
+
+- **Type:** Boolean
+- **Default:** `false`
+- **Description:** Enable or disable early stopping
+- **Usage:**
+  ```yaml
+  training:
+    early_stopping:
+      enabled: true
+  ```
+
+### `patience`
+
+- **Type:** Integer (> 0)
+- **Default:** `10`
+- **Description:** Number of epochs to wait for improvement before stopping
+- **Usage:**
+  ```yaml
+  training:
+    early_stopping:
+      patience: 15  # Wait 15 epochs
+  ```
+
+**Typical Values:**
+- Small datasets: 5-10 epochs
+- Medium datasets: 10-20 epochs
+- Large datasets: 20-30 epochs
+- Conservative (less likely to stop early): 30-50 epochs
+
+### `metric`
+
+- **Type:** String
+- **Default:** `'val_acc'`
+- **Description:** Which metric to monitor
+- **Options:** `'val_acc'` or `'val_loss'`
+- **Usage:**
+  ```yaml
+  training:
+    early_stopping:
+      metric: 'val_loss'  # Monitor validation loss instead
+  ```
+
+**When to use each:**
+- `'val_acc'`: Most common, directly measures model performance
+- `'val_loss'`: Better for imbalanced datasets or when loss is more stable
+
+### `mode`
+
+- **Type:** String
+- **Default:** `'max'`
+- **Description:** Whether metric should increase or decrease
+- **Options:**
+  - `'max'`: Higher is better (for accuracy)
+  - `'min'`: Lower is better (for loss)
+- **Usage:**
+  ```yaml
+  training:
+    early_stopping:
+      metric: 'val_loss'
+      mode: 'min'  # Stop when loss stops decreasing
+  ```
+
+**Mode should match metric:**
+- `val_acc` → `mode: 'max'`
+- `val_loss` → `mode: 'min'`
+
+### `min_delta`
+
+- **Type:** Float (>= 0)
+- **Default:** `0.0`
+- **Description:** Minimum change in metric to qualify as improvement
+- **Usage:**
+  ```yaml
+  training:
+    early_stopping:
+      min_delta: 0.001  # Require at least 0.1% improvement
+  ```
+
+**When to use:**
+- `0.0`: Count any improvement (default, recommended)
+- `0.001-0.01`: Require meaningful improvement, reduces sensitivity to noise
+
+### Complete Examples
+
+**Example 1: Monitor validation accuracy (most common)**
+```yaml
+training:
+  num_epochs: 100
+  early_stopping:
+    enabled: true
+    patience: 10
+    metric: 'val_acc'
+    mode: 'max'
+    min_delta: 0.0
+```
+
+**Example 2: Monitor validation loss**
+```yaml
+training:
+  num_epochs: 100
+  early_stopping:
+    enabled: true
+    patience: 15
+    metric: 'val_loss'
+    mode: 'min'
+    min_delta: 0.001
+```
+
+**Example 3: Conservative (longer patience)**
+```yaml
+training:
+  num_epochs: 200
+  early_stopping:
+    enabled: true
+    patience: 30  # Wait longer before stopping
+    metric: 'val_acc'
+    mode: 'max'
+```
+
+### How It Works
+
+1. **Tracks best metric value** across all epochs
+2. **Counts epochs without improvement** (patience counter)
+3. **Stops training** when patience counter reaches patience limit
+4. **Loads best model** at the end (already implemented via checkpointing)
+
+**Example scenario:**
+```
+Epoch 0:  val_acc=0.70  → Best so far, counter=0
+Epoch 1:  val_acc=0.75  → Improved, counter=0
+Epoch 2:  val_acc=0.78  → Improved, counter=0
+Epoch 3:  val_acc=0.77  → No improvement, counter=1
+Epoch 4:  val_acc=0.76  → No improvement, counter=2
+Epoch 5:  val_acc=0.79  → Improved! counter=0
+Epoch 6:  val_acc=0.78  → No improvement, counter=1
+...
+Epoch 15: val_acc=0.77  → counter=10, STOP (patience=10)
+```
+
+### Best Practices
+
+1. **Always enable for long training runs**
+   - Set `num_epochs` higher than you think you need
+   - Let early stopping decide when to stop
+
+2. **Adjust patience based on dataset**
+   - Small datasets: Use smaller patience (5-10)
+   - Large datasets: Use larger patience (15-30)
+   - Noisy validation: Increase patience to avoid premature stopping
+
+3. **Monitor in TensorBoard**
+   ```bash
+   tensorboard --logdir runs/
+   ```
+   - Verify early stopping triggered at right time
+   - Check if patience needs adjustment
+
+4. **Use with high `num_epochs`**
+   ```yaml
+   training:
+     num_epochs: 200  # Set high
+     early_stopping:
+       enabled: true
+       patience: 20   # Will stop early if no improvement
+   ```
+
+5. **Combine with learning rate scheduling**
+   - Early stopping works best with learning rate decay
+   - StepLR scheduler already configured in template
+
+### Troubleshooting
+
+**Problem: Stops too early**
+- Increase `patience` (try 20-30)
+- Decrease `min_delta` to 0.0
+- Check if validation set is too small/noisy
+
+**Problem: Never stops (trains all epochs)**
+- Model is still improving (this is good!)
+- Try increasing `num_epochs`
+- Check if `metric` and `mode` are correct
+
+**Problem: Training unstable**
+- Validation accuracy jumps around
+- Increase `patience` to tolerate noise
+- Consider using `val_loss` instead (often more stable)
+- Add `min_delta` threshold (e.g., 0.001)
+
+### When to Use Early Stopping
+
+**Use early stopping when:**
+- ✅ Training for many epochs (>50)
+- ✅ Uncertain about optimal epoch count
+- ✅ Want to prevent overfitting automatically
+- ✅ Running multiple experiments (saves compute)
+
+**Don't use early stopping when:**
+- ❌ Training for very few epochs (<20)
+- ❌ Need exact epoch count for comparisons
+- ❌ Validation set is very small/noisy
+- ❌ Debugging (want full training run)
+
+---
 
 ## Related Configuration
 

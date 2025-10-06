@@ -4,8 +4,13 @@ import yaml
 
 
 def create_config(
-    dataset_info, template_path, architecture="resnet18", batch_size=4,
-    num_epochs=25, lr=0.001, num_folds=5
+    dataset_info,
+    template_path,
+    architecture="resnet18",
+    batch_size=4,
+    num_epochs=25,
+    lr=0.001,
+    num_folds=5,
 ):
     """
     Create configuration from template with dataset-specific values.

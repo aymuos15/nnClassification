@@ -131,7 +131,9 @@ def test_dp_trainer():
         try:
             epsilon = trainer.privacy_engine.get_epsilon(delta=trainer.target_delta)
             assert epsilon >= 0
-            print(f"Privacy budget after {config['training']['num_epochs']} epochs: ε={epsilon:.2f}")
+            print(
+                f"Privacy budget after {config['training']['num_epochs']} epochs: ε={epsilon:.2f}"
+            )
         except (ValueError, RuntimeError):
             # This is okay - means no training steps were taken (shouldn't happen with 2 epochs)
             print("Privacy budget computation failed (no training steps)")

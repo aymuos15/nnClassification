@@ -116,11 +116,8 @@ Examples:
     if args.mode == "samples":
         visualize_samples(args.run_dir, config, args.split, args.num_images)
     elif args.mode == "predictions":
-        visualize_predictions(
-            args.run_dir, config, args.checkpoint, args.split, args.num_images
-        )
+        visualize_predictions(args.run_dir, config, args.checkpoint, args.split, args.num_images)
 
 
 if __name__ == "__main__":
     main()
-

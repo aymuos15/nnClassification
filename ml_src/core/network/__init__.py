@@ -79,9 +79,7 @@ def get_model(config, device):
     """
     model_config = config["model"]
     num_classes = model_config["num_classes"]
-    model_type = model_config.get(
-        "type", "base"
-    )  # default to 'base' for backward compatibility
+    model_type = model_config.get("type", "base")  # default to 'base' for backward compatibility
 
     if model_type == "base":
         # Load torchvision model
@@ -119,9 +117,7 @@ def get_model(config, device):
         )
 
     else:
-        raise ValueError(
-            f"Invalid model type '{model_type}'. Must be 'base' or 'custom'."
-        )
+        raise ValueError(f"Invalid model type '{model_type}'. Must be 'base' or 'custom'.")
 
     return model
 
@@ -170,6 +166,9 @@ def load_model(model, path, device):
         model.load_state_dict(checkpoint["model_state_dict"])
     else:
         model.load_state_dict(checkpoint)
+
+    # Ensure model is on the correct device
+    model = model.to(device)
 
     logger.info(f"Model loaded from {path}")
     return model

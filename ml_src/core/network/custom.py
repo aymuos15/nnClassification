@@ -48,12 +48,8 @@ class SimpleCNN(nn.Module):
 
         # Convolutional layers
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(
-            in_channels=32, out_channels=64, kernel_size=3, padding=1
-        )
-        self.conv3 = nn.Conv2d(
-            in_channels=128, out_channels=128, kernel_size=3, padding=1
-        )
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
 
         # Pooling layer (reused)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -133,9 +129,7 @@ class TinyNet(nn.Module):
 
         self.fc = nn.Linear(flattened_size, num_classes)
 
-        logger.info(
-            f"Created TinyNet: input_size={input_size}, num_classes={num_classes}"
-        )
+        logger.info(f"Created TinyNet: input_size={input_size}, num_classes={num_classes}")
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -192,7 +186,5 @@ def get_custom_model(model_name, num_classes, input_size=224, device="cpu", **kw
     # Move to device
     model = model.to(device)
 
-    logger.success(
-        f"Created custom model '{model_name}' with {num_classes} output classes"
-    )
+    logger.success(f"Created custom model '{model_name}' with {num_classes} output classes")
     return model

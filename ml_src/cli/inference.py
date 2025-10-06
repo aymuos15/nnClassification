@@ -70,7 +70,9 @@ Examples:
     if not os.path.exists(config_path):
         logger.error(f"config.yaml not found in {run_dir}")
         logger.error(f"Expected path: {config_path}")
-        logger.error("Make sure checkpoint path follows format: runs/run_name/weights/checkpoint.pt")
+        logger.error(
+            "Make sure checkpoint path follows format: runs/run_name/weights/checkpoint.pt"
+        )
         return
 
     config = load_config(config_path)
@@ -175,7 +177,12 @@ Examples:
 
     # Display results using rich tables
     display_inference_results(
-        per_sample_results, test_acc, dataset_sizes["test"], run_dir, args.checkpoint_path, class_names
+        per_sample_results,
+        test_acc,
+        dataset_sizes["test"],
+        run_dir,
+        args.checkpoint_path,
+        class_names,
     )
 
 

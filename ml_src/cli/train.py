@@ -46,9 +46,7 @@ def main():
     )
     parser.add_argument("--data_dir", type=str, help="Path to dataset")
     parser.add_argument("--batch_size", type=int, help="Batch size for training")
-    parser.add_argument(
-        "--num_workers", type=int, help="Number of data loading workers"
-    )
+    parser.add_argument("--num_workers", type=int, help="Number of data loading workers")
     parser.add_argument("--num_epochs", type=int, help="Number of training epochs")
     parser.add_argument("--lr", type=float, help="Learning rate")
     parser.add_argument("--momentum", type=float, help="SGD momentum")
@@ -63,6 +61,17 @@ def main():
         "--dataset_name",
         type=str,
         help="Dataset name (used in run directory naming)",
+    )
+    parser.add_argument(
+        "--early_stopping_patience",
+        type=int,
+        help="Early stopping patience (epochs to wait for improvement)",
+    )
+    parser.add_argument(
+        "--early_stopping_metric",
+        type=str,
+        choices=["val_acc", "val_loss"],
+        help="Early stopping metric to monitor (val_acc or val_loss)",
     )
 
     args = parser.parse_args()
@@ -144,6 +153,7 @@ def main():
             resume_train_accs,
             resume_val_accs,
             _,
+            _,  # early_stopping_state (handled by trainer)
         ) = load_checkpoint(
             checkpoint_path=args.resume,
             model=model,

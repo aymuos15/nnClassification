@@ -1,6 +1,5 @@
 """Accelerate-based trainer for multi-GPU and distributed training."""
 
-import torch
 from accelerate import Accelerator
 
 from ml_src.core.checkpointing import load_checkpoint, save_checkpoint
@@ -171,6 +170,11 @@ class AccelerateTrainer(BaseTrainer):
             # Unwrap model from distributed wrapper before saving
             unwrapped_model = self.accelerator.unwrap_model(self.model)
 
+            # Get early stopping state if enabled
+            early_stopping_state = None
+            if self.early_stopping is not None:
+                early_stopping_state = self.early_stopping.get_state()
+
             save_checkpoint(
                 model=unwrapped_model,
                 optimizer=self.optimizer,
@@ -183,6 +187,7 @@ class AccelerateTrainer(BaseTrainer):
                 val_accs=metrics["val_accs"],
                 config=self.config,
                 checkpoint_path=path,
+                early_stopping_state=early_stopping_state,
             )
 
         # Wait for all processes to reach this point
@@ -200,15 +205,31 @@ class AccelerateTrainer(BaseTrainer):
         Returns:
             Tuple of (epoch, best_acc, train_losses, val_losses, train_accs, val_accs)
         """
+        from loguru import logger
+
         # Unwrap model before loading state dict
         unwrapped_model = self.accelerator.unwrap_model(self.model)
 
-        epoch, best_acc, train_losses, val_losses, train_accs, val_accs, _ = load_checkpoint(
+        (
+            epoch,
+            best_acc,
+            train_losses,
+            val_losses,
+            train_accs,
+            val_accs,
+            _,
+            early_stopping_state,
+        ) = load_checkpoint(
             checkpoint_path=path,
             model=unwrapped_model,
             optimizer=self.optimizer,
             scheduler=self.scheduler,
             device=self.accelerator.device,
         )
+
+        # Restore early stopping state if available
+        if early_stopping_state is not None and self.early_stopping is not None:
+            self.early_stopping.load_state(early_stopping_state)
+            logger.success("Restored early stopping state from checkpoint")
 
         return epoch, best_acc, train_losses, val_losses, train_accs, val_accs

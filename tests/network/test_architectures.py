@@ -198,9 +198,7 @@ class TestFinalLayerReplacement:
         ],
     )
     @pytest.mark.parametrize("num_classes", [2, 10, 100, 1000])
-    def test_num_classes_replacement(
-        self, architecture, num_classes, device, base_config_template
-    ):
+    def test_num_classes_replacement(self, architecture, num_classes, device, base_config_template):
         """Test that final layer is adapted to match num_classes."""
         config = base_config_template.copy()
         config["model"]["architecture"] = architecture
@@ -333,9 +331,7 @@ class TestBatchSizes:
     """Test that models handle various batch sizes correctly."""
 
     @pytest.mark.parametrize("batch_size", [1, 2, 4, 8])
-    @pytest.mark.parametrize(
-        "architecture", ["resnet18", "efficientnet_b0", "mobilenet_v2"]
-    )
+    @pytest.mark.parametrize("architecture", ["resnet18", "efficientnet_b0", "mobilenet_v2"])
     def test_various_batch_sizes(
         self, architecture, batch_size, device, num_classes_small, base_config_template
     ):
@@ -363,9 +359,7 @@ class TestBatchSizes:
 class TestArchitectureFamilies:
     """Test coverage across all documented architecture families."""
 
-    def test_resnet_family_coverage(
-        self, device, num_classes_small, base_config_template
-    ):
+    def test_resnet_family_coverage(self, device, num_classes_small, base_config_template):
         """Test that ResNet family is supported."""
         for arch in ["resnet18", "resnext50_32x4d", "wide_resnet50_2"]:
             config = base_config_template.copy()
@@ -383,9 +377,7 @@ class TestArchitectureFamilies:
             model = get_model(config, device)
             assert model is not None
 
-    def test_efficientnet_family_coverage(
-        self, device, num_classes_small, base_config_template
-    ):
+    def test_efficientnet_family_coverage(self, device, num_classes_small, base_config_template):
         """Test that EfficientNet family is supported."""
         for arch in ["efficientnet_b0", "efficientnet_v2_s"]:
             config = base_config_template.copy()
@@ -394,9 +386,7 @@ class TestArchitectureFamilies:
             model = get_model(config, device)
             assert model is not None
 
-    def test_mobilenet_family_coverage(
-        self, device, num_classes_small, base_config_template
-    ):
+    def test_mobilenet_family_coverage(self, device, num_classes_small, base_config_template):
         """Test that MobileNet family is supported."""
         for arch in ["mobilenet_v2", "mobilenet_v3_large"]:
             config = base_config_template.copy()
@@ -405,9 +395,7 @@ class TestArchitectureFamilies:
             model = get_model(config, device)
             assert model is not None
 
-    def test_transformer_family_coverage(
-        self, device, num_classes_small, base_config_template
-    ):
+    def test_transformer_family_coverage(self, device, num_classes_small, base_config_template):
         """Test that Transformer families (ViT, Swin) are supported."""
         for arch in ["vit_b_16", "swin_t"]:
             config = base_config_template.copy()
@@ -416,9 +404,7 @@ class TestArchitectureFamilies:
             model = get_model(config, device)
             assert model is not None
 
-    def test_convnext_family_coverage(
-        self, device, num_classes_small, base_config_template
-    ):
+    def test_convnext_family_coverage(self, device, num_classes_small, base_config_template):
         """Test that ConvNeXt family is supported."""
         config = base_config_template.copy()
         config["model"]["architecture"] = "convnext_tiny"
@@ -426,9 +412,7 @@ class TestArchitectureFamilies:
         model = get_model(config, device)
         assert model is not None
 
-    def test_densenet_family_coverage(
-        self, device, num_classes_small, base_config_template
-    ):
+    def test_densenet_family_coverage(self, device, num_classes_small, base_config_template):
         """Test that DenseNet family is supported."""
         config = base_config_template.copy()
         config["model"]["architecture"] = "densenet121"
@@ -451,9 +435,7 @@ class TestErrorHandling:
         with pytest.raises(ValueError, match="not found in torchvision.models"):
             get_model(config, device)
 
-    def test_invalid_model_type_raises_error(
-        self, device, num_classes_small, base_config_template
-    ):
+    def test_invalid_model_type_raises_error(self, device, num_classes_small, base_config_template):
         """Test that invalid model type raises appropriate error."""
         config = base_config_template.copy()
         config["model"]["type"] = "invalid_type"

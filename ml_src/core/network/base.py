@@ -122,9 +122,7 @@ def _replace_final_layer(model, architecture, num_classes):
 
     # SqueezeNet: classifier[1] is Conv2d, not Linear
     elif "squeezenet" in arch_lower:
-        model.classifier[1] = nn.Conv2d(
-            512, num_classes, kernel_size=(1, 1), stride=(1, 1)
-        )
+        model.classifier[1] = nn.Conv2d(512, num_classes, kernel_size=(1, 1), stride=(1, 1))
         logger.debug(f"Replaced .classifier[1] Conv2d layer: 512 -> {num_classes}")
 
     # MaxVit: classifier is Sequential, last layer is [5]
@@ -181,9 +179,7 @@ def _replace_final_layer(model, architecture, num_classes):
         if hasattr(model, "AuxLogits"):
             num_ftrs_aux = model.AuxLogits.fc.in_features
             model.AuxLogits.fc = nn.Linear(num_ftrs_aux, num_classes)
-            logger.debug(
-                f"Replaced .AuxLogits.fc layer: {num_ftrs_aux} -> {num_classes}"
-            )
+            logger.debug(f"Replaced .AuxLogits.fc layer: {num_ftrs_aux} -> {num_classes}")
 
     else:
         # No fallback - require explicit support for all architectures

@@ -22,6 +22,7 @@ def save_checkpoint(
     val_accs,
     config,
     checkpoint_path,
+    early_stopping_state=None,
 ):
     """
     Save a comprehensive training checkpoint.
@@ -38,6 +39,7 @@ def save_checkpoint(
         val_accs: List of validation accuracies
         config: Configuration dictionary
         checkpoint_path: Path to save the checkpoint
+        early_stopping_state: Early stopping state dict (optional)
     """
     checkpoint = {
         "epoch": epoch,
@@ -61,6 +63,10 @@ def save_checkpoint(
     if torch.cuda.is_available():
         checkpoint["cuda_rng_state"] = torch.cuda.get_rng_state_all()
 
+    # Save early stopping state if provided
+    if early_stopping_state is not None:
+        checkpoint["early_stopping_state"] = early_stopping_state
+
     torch.save(checkpoint, checkpoint_path)
     logger.debug(f"Saved checkpoint to {checkpoint_path}")
 
@@ -77,7 +83,8 @@ def load_checkpoint(checkpoint_path, model, optimizer, scheduler, device):
         device: Device to map tensors to
 
     Returns:
-        Tuple of (epoch, best_acc, train_losses, val_losses, train_accs, val_accs, config)
+        Tuple of (epoch, best_acc, train_losses, val_losses, train_accs, val_accs, config,
+        early_stopping_state)
     """
     if not os.path.exists(checkpoint_path):
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
@@ -105,10 +112,20 @@ def load_checkpoint(checkpoint_path, model, optimizer, scheduler, device):
     train_accs = checkpoint.get("train_accs", [])
     val_accs = checkpoint.get("val_accs", [])
     config = checkpoint.get("config", None)
+    early_stopping_state = checkpoint.get("early_stopping_state", None)
 
     logger.success(f"Resumed from epoch {epoch}, best accuracy: {best_acc:.4f}")
 
-    return epoch, best_acc, train_losses, val_losses, train_accs, val_accs, config
+    return (
+        epoch,
+        best_acc,
+        train_losses,
+        val_losses,
+        train_accs,
+        val_accs,
+        config,
+        early_stopping_state,
+    )
 
 
 def count_parameters(model):
@@ -199,9 +216,7 @@ def save_summary(
             f"Started:  {datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')}"
         )
     if end_time:
-        lines.append(
-            f"Finished: {datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S')}"
-        )
+        lines.append(f"Finished: {datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S')}")
     if start_time and end_time:
         duration = end_time - start_time
         lines.append(f"Duration: {format_duration(duration)}")

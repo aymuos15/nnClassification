@@ -276,7 +276,16 @@ def test_checkpoint_compatibility_standard_mixed_precision():
         scheduler2 = torch.optim.lr_scheduler.StepLR(optimizer2, step_size=1, gamma=0.1)
 
         # Load checkpoint
-        epoch, best_acc, loaded_train_losses, loaded_val_losses, loaded_train_accs, loaded_val_accs, loaded_config = load_checkpoint(
+        (
+            epoch,
+            best_acc,
+            loaded_train_losses,
+            loaded_val_losses,
+            loaded_train_accs,
+            loaded_val_accs,
+            loaded_config,
+            early_stopping_state,
+        ) = load_checkpoint(
             checkpoint_path=checkpoint_path,
             model=model2,
             optimizer=optimizer2,
@@ -321,9 +330,6 @@ def test_checkpoint_compatibility_standard_mixed_precision():
 
 
 @pytest.mark.slow
-@pytest.mark.skip(
-    reason="CLI test has device mismatch issues in test evaluation phase. Core trainer functionality tested elsewhere."
-)
 def test_cli_integration_all_trainers():
     """End-to-end CLI test for all trainer types.
 
@@ -342,6 +348,27 @@ def test_cli_integration_all_trainers():
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create config file
             config_path = os.path.join(temp_dir, "test_config.yaml")
+            
+            # DP trainer requires models without BatchNorm (use custom model)
+            # Other trainers can use standard resnet18
+            if trainer_type == "dp":
+                model_config = """
+model:
+  type: "custom"
+  custom_architecture: "simple_cnn"
+  num_classes: 2
+  input_size: 224
+  dropout: 0.5
+"""
+            else:
+                model_config = """
+model:
+  type: "base"
+  architecture: "resnet18"
+  num_classes: 2
+  weights: null
+"""
+            
             config_content = f"""
 dataset_name: "test_cli"
 
@@ -350,12 +377,7 @@ data:
   fold: 0
   num_workers: 0
 
-model:
-  type: "base"
-  architecture: "resnet18"
-  num_classes: 2
-  weights: null
-
+{model_config}
 training:
   trainer_type: "{trainer_type}"
   num_epochs: 1
@@ -365,9 +387,11 @@ training:
             # Add DP-specific config
             if trainer_type == "dp":
                 config_content += """
-  epsilon: 10.0
-  delta: 1e-5
-  max_grad_norm: 1.0
+  dp:
+    noise_multiplier: 1.1
+    max_grad_norm: 1.0
+    target_epsilon: 10.0
+    target_delta: 0.00001
 """
 
             config_content += """
@@ -449,7 +473,10 @@ deterministic: false
             cmd = [sys.executable, "-m", "ml_src.cli.train", "--config", config_path]
 
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=60  # 60 second timeout
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=60,  # 60 second timeout
             )
 
             # Check exit code
@@ -469,7 +496,10 @@ def test_factory_defaults():
     """Test factory default behavior when trainer_type is omitted or null."""
     test_cases = [
         ({}, "omitted"),  # trainer_type not in config at all
-        ({"training": {"num_epochs": 1, "batch_size": 2}}, "omitted from training"),  # training exists but no trainer_type
+        (
+            {"training": {"num_epochs": 1, "batch_size": 2}},
+            "omitted from training",
+        ),  # training exists but no trainer_type
     ]
 
     for config_override, description in test_cases:
@@ -504,9 +534,9 @@ def test_factory_defaults():
             )
 
             # Verify it's a StandardTrainer
-            assert isinstance(
-                trainer, StandardTrainer
-            ), f"Failed for case: {description}, got {type(trainer)}"
+            assert isinstance(trainer, StandardTrainer), (
+                f"Failed for case: {description}, got {type(trainer)}"
+            )
 
             # Verify it works
             trained_model, train_losses, val_losses, train_accs, val_accs = trainer.train()

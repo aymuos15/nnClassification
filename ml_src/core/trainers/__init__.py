@@ -32,7 +32,7 @@ def get_trainer(
     device,
     run_dir,
     class_names,
-    **kwargs
+    **kwargs,
 ):
     """
     Factory function to create appropriate trainer based on configuration.

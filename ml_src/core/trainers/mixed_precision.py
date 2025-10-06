@@ -151,6 +151,7 @@ class MixedPrecisionTrainer(BaseTrainer):
         - GradScaler state dict (if using CUDA)
         - Training metrics history
         - Random states for reproducibility
+        - Early stopping state (if enabled)
 
         Args:
             epoch: Current epoch number
@@ -158,6 +159,11 @@ class MixedPrecisionTrainer(BaseTrainer):
             metrics: Dictionary containing train_losses, val_losses, train_accs, val_accs
             path: Path to save the checkpoint
         """
+        # Get early stopping state if enabled
+        early_stopping_state = None
+        if self.early_stopping is not None:
+            early_stopping_state = self.early_stopping.get_state()
+
         # Use standard checkpointing function
         save_checkpoint(
             model=self.model,
@@ -171,6 +177,7 @@ class MixedPrecisionTrainer(BaseTrainer):
             val_accs=metrics["val_accs"],
             config=self.config,
             checkpoint_path=path,
+            early_stopping_state=early_stopping_state,
         )
 
         # Additionally save GradScaler state if using mixed precision
@@ -204,13 +211,27 @@ class MixedPrecisionTrainer(BaseTrainer):
             Tuple of (epoch, best_acc, train_losses, val_losses, train_accs, val_accs)
         """
         # Load standard checkpoint components
-        epoch, best_acc, train_losses, val_losses, train_accs, val_accs, config = load_checkpoint(
+        (
+            epoch,
+            best_acc,
+            train_losses,
+            val_losses,
+            train_accs,
+            val_accs,
+            config,
+            early_stopping_state,
+        ) = load_checkpoint(
             checkpoint_path=path,
             model=self.model,
             optimizer=self.optimizer,
             scheduler=self.scheduler,
             device=self.device,
         )
+
+        # Restore early stopping state if available
+        if early_stopping_state is not None and self.early_stopping is not None:
+            self.early_stopping.load_state(early_stopping_state)
+            logger.success("Restored early stopping state from checkpoint")
 
         # Load GradScaler state if present and using CUDA
         if self.device.type == "cuda" and self.scaler is not None:
@@ -221,8 +242,7 @@ class MixedPrecisionTrainer(BaseTrainer):
                 logger.debug("Loaded GradScaler state from checkpoint")
             else:
                 logger.warning(
-                    "Checkpoint does not contain GradScaler state. "
-                    "Starting with fresh GradScaler."
+                    "Checkpoint does not contain GradScaler state. Starting with fresh GradScaler."
                 )
 
         return epoch, best_acc, train_losses, val_losses, train_accs, val_accs

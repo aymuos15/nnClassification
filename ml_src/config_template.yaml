@@ -56,6 +56,14 @@ training:
   num_epochs: 3
   device: 'cuda:0'  # Will fallback to cpu if cuda not available
 
+  # Early stopping configuration
+  early_stopping:
+    enabled: false         # Enable early stopping to prevent overfitting
+    patience: 10           # Number of epochs to wait for improvement before stopping
+    metric: 'val_acc'      # Metric to monitor: 'val_acc' or 'val_loss'
+    mode: 'max'            # 'max' for accuracy (higher is better), 'min' for loss (lower is better)
+    min_delta: 0.0         # Minimum change in metric to qualify as improvement
+
 # Inference settings
 inference:
   # Inference strategy: Selects the inference optimization strategy

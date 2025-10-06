@@ -55,9 +55,7 @@ def save_classification_report(y_true, y_pred, class_names, save_path):
         f.write("=" * 80 + "\n\n")
         f.write(report)
 
-    logger.opt(colors=True).info(
-        f"<fg 208>Saved classification report to {save_path}</fg 208>"
-    )
+    logger.opt(colors=True).info(f"<fg 208>Saved classification report to {save_path}</fg 208>")
 
 
 def create_confusion_matrix_figure(y_true, y_pred, class_names):
@@ -92,9 +90,7 @@ def create_confusion_matrix_figure(y_true, y_pred, class_names):
     return fig
 
 
-def log_confusion_matrix_to_tensorboard(
-    writer, y_true, y_pred, class_names, tag, global_step
-):
+def log_confusion_matrix_to_tensorboard(writer, y_true, y_pred, class_names, tag, global_step):
     """
     Log confusion matrix to TensorBoard.
 
