@@ -496,7 +496,7 @@ Distributed inference across multiple GPUs.
 
 **Requirements:**
 ```bash
-pip install accelerate
+uv pip install accelerate
 ```
 
 ---
@@ -592,7 +592,7 @@ Multi-GPU/distributed training with Hugging Face Accelerate.
 
 **Requirements:**
 ```bash
-pip install accelerate
+uv pip install accelerate
 accelerate config  # One-time setup
 ```
 
@@ -610,7 +610,7 @@ Differential privacy training with Opacus.
 
 **Requirements:**
 ```bash
-pip install opacus
+uv pip install opacus
 ```
 
 **Features:**

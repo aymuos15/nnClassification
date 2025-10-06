@@ -207,7 +207,7 @@ Before deep debugging, verify:
 - [ ] Data directory structure is correct (see [Data Preparation](../getting-started/data-preparation.md))
 - [ ] Configuration file is valid YAML
 - [ ] GPU is available and utilized (`nvidia-smi`)
-- [ ] Dependencies are installed (`pip install -e .`)
+- [ ] Dependencies are installed (`uv pip install -e .`)
 - [ ] Sufficient disk space for checkpoints and logs
 - [ ] Correct Python and PyTorch versions
 

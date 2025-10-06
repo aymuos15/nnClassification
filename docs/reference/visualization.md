@@ -288,7 +288,7 @@ ml-visualise --mode launch --run_dir runs/base
 
 **Solution:**
 ```bash
-pip install tensorboard
+uv pip install tensorboard
 ```
 
 ### Images Not Appearing

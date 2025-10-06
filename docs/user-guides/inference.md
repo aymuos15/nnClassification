@@ -72,7 +72,7 @@ inference:
 
 **Requirements:**
 ```bash
-pip install accelerate
+uv pip install accelerate
 ```
 
 ### Choosing an Inference Strategy

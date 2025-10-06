@@ -441,7 +441,7 @@ training:
 
 **One-time setup:**
 ```bash
-pip install accelerate
+uv pip install accelerate
 accelerate config  # Interactive configuration
 ```
 
@@ -481,7 +481,7 @@ training:
 ```
 
 ```bash
-pip install opacus
+uv pip install opacus
 ml-train --config configs/my_config.yaml
 ```
 

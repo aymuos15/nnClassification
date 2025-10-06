@@ -8,26 +8,26 @@ This guide shows the complete workflow from dataset preparation to model deploym
 
 ### Basic Installation
 ```bash
-pip install -e .
+uv pip install -e .
 ```
 Installs the package in editable mode with core dependencies.
 
 ### With Development Tools
 ```bash
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 ```
 Includes pytest, ruff, and mkdocs for development and testing.
 
 ### With Optional Features
 ```bash
 # For differential privacy training
-pip install -e ".[dp]"
+uv pip install -e ".[dp]"
 
 # For hyperparameter search
-pip install -e ".[optuna]"
+uv pip install -e ".[optuna]"
 
 # Install all optional features
-pip install -e ".[dev,dp,optuna]"
+uv pip install -e ".[dev,dp,optuna]"
 ```
 
 ---
@@ -284,7 +284,7 @@ ml-visualise --mode launch --run_dir runs/my_dataset_fold_0
 ### Complete Workflow with Hyperparameter Search
 ```bash
 # 1. Install with search support
-pip install -e ".[optuna]"
+uv pip install -e ".[optuna]"
 
 # 2. Prepare data
 ml-split --raw_data data/my_dataset/raw --folds 5

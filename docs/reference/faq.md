@@ -272,16 +272,29 @@ See: [Monitoring Guide](../user-guides/monitoring.md)
 
 ### Q: How do I tune hyperparameters?
 
-**A:** Run multiple experiments with different values:
+**A:** Use the `ml-search` command for automated hyperparameter optimization:
+```bash
+# Install Optuna support
+uv pip install -e ".[optuna]"
+
+# Generate config with search space
+ml-init-config data/my_dataset --optuna
+
+# Run optimization
+ml-search --config configs/my_dataset_config.yaml --n-trials 50
+
+# Train with best hyperparameters
+ml-train --config runs/optuna_studies/my_study/best_config.yaml
+```
+
+Or run manual experiments:
 ```bash
 ml-train --lr 0.001 --batch_size 16
 ml-train --lr 0.01 --batch_size 16
 ml-train --lr 0.01 --batch_size 32
 ```
 
-Compare in TensorBoard.
-
-See: [Hyperparameter Tuning](../user-guides/hyperparameter-tuning.md)
+See: [Workflow Guide](../workflow.md#5-hyperparameter-search-optional)
 
 ---
 
@@ -292,6 +305,8 @@ See: [Hyperparameter Tuning](../user-guides/hyperparameter-tuning.md)
 2. Batch size (`--batch_size`)
 3. Number of epochs (`--num_epochs`)
 4. Scheduler settings (`--step_size`, `--gamma`)
+
+For automated search, use `ml-search` which will optimize multiple parameters simultaneously.
 
 ---
 
@@ -351,13 +366,25 @@ See: [Troubleshooting](troubleshooting.md)
 
 ### Q: Can I use mixed precision training?
 
-**A:** Not currently supported, but can be added by modifying `trainer.py` to use `torch.cuda.amp`.
+**A:** Yes! Use the `mixed_precision` trainer type in your config:
+```yaml
+training:
+  trainer_type: 'mixed_precision'
+  amp_dtype: 'float16'
+```
+See: [Advanced Training Guide](../user-guides/advanced-training.md)
 
 ---
 
 ### Q: Can I train on multiple GPUs?
 
-**A:** Not currently supported. Future extension.
+**A:** Yes! Use the `accelerate` trainer type:
+```bash
+uv pip install accelerate
+accelerate config
+accelerate launch ml-train --config configs/my_config.yaml
+```
+See: [Advanced Training Guide](../user-guides/advanced-training.md)
 
 ---
 
@@ -379,7 +406,16 @@ See: [Adding Optimizers](../development/adding-optimizers.md)
 
 ### Q: How do I implement early stopping?
 
-**A:** Not currently implemented. Requires modification to `trainer.py`.
+**A:** Early stopping is built-in! Configure it in your config file:
+```yaml
+training:
+  early_stopping:
+    enabled: true
+    patience: 10
+    metric: 'val_acc'
+    mode: 'max'
+```
+Training will automatically stop if validation accuracy doesn't improve for 10 epochs.
 
 ---
 

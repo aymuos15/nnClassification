@@ -95,19 +95,20 @@ Track and visualize training progress:
 ---
 
 ### 6. [Hyperparameter Tuning Guide](hyperparameter-tuning.md)
-**Systematic search for optimal hyperparameters**
+**Automated and manual hyperparameter optimization**
 
 Optimize model performance:
-- Grid search strategies
-- Random search approaches
-- Learning rate tuning
-- Batch size optimization
-- Regularization parameter selection
-- Cross-validation for hyperparameter search
-- Organizing and comparing experiments
-- Best practices for systematic tuning
+- Automated search with `ml-search` and Optuna
+- Manual tuning with CLI overrides
+- Learning rate optimization
+- Batch size and optimizer tuning
+- Architecture search
+- Samplers and pruning strategies
+- Search space configuration
+- Visualization and analysis
+- Best practices for optimization
 
-**Start here if you're:** Optimizing model performance or running experiments.
+**Start here if you're:** Optimizing model performance, running experiments, or using automated hyperparameter search.
 
 ---
 
@@ -188,6 +189,21 @@ ml-visualise --mode samples --run_dir runs/my_dataset_base_fold_0 --split train
 
 # View predictions
 ml-visualise --mode predictions --run_dir runs/my_dataset_base_fold_0 --split val
+
+# Visualize hyperparameter search results
+ml-visualise --mode search --study-name my_study
+```
+
+### Hyperparameter Search
+```bash
+# Automated search with Optuna
+ml-search --config configs/my_config.yaml --n-trials 50
+
+# Visualize search results
+ml-visualise --mode search --study-name my_study
+
+# Train with best hyperparameters
+ml-train --config runs/optuna_studies/my_study/best_config.yaml
 ```
 
 ---

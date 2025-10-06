@@ -2,14 +2,15 @@
 
 ## Overview
 
-The framework has five main CLI entry points that provide complete workflows for configuration, training, inference, visualization, and dataset management. These commands are defined in `pyproject.toml` and are accessible after installation via `pip install -e .`.
+The framework has six main CLI entry points that provide complete workflows for configuration, training, inference, hyperparameter optimization, visualization, and dataset management. These commands are defined in `pyproject.toml` and are accessible after installation via `uv pip install -e .`.
 
 **CLI Commands:**
 - `ml-init-config` - Generate dataset-specific configuration (from `ml_src/cli/init_config.py`)
 - `ml-train` - Training workflow (from `ml_src/cli/train.py`)
 - `ml-inference` - Inference/evaluation (from `ml_src/cli/inference.py`)
+- `ml-search` - Hyperparameter optimization (from `ml_src/cli/search.py`)
 - `ml-split` - Dataset splitting (from `ml_src/cli/splitting.py`)
-- `ml-visualise` - TensorBoard visualization (from `ml_src/cli/visualise.py`)
+- `ml-visualise` - TensorBoard and search visualization (from `ml_src/cli/visualise.py`)
 
 These entry points are defined in `pyproject.toml`:
 ```toml
@@ -229,7 +230,7 @@ ml-train \
 
 **All arguments are optional.** Defaults come from config file.
 
-**Note:** After installation with `pip install -e .`, use `ml-train` instead of `python train.py`.
+**Note:** After installation with `uv pip install -e .`, use `ml-train` instead of `python train.py`.
 
 ---
 
