@@ -28,6 +28,8 @@ dependencies = [
     "loguru>=0.7.0",
     "matplotlib>=3.7.0",
     "numpy>=1.24.0",
+    "onnx>=1.15.0",
+    "onnxruntime>=1.16.0",
     "Pillow>=9.0.0",
     "pyyaml>=6.0",
     "rich>=13.0.0",
@@ -57,12 +59,14 @@ optuna = [
 ]
 
 [project.scripts]
-ml-train = "ml_src.cli.train:main"
+ml-export = "ml_src.cli.export:main"
 ml-inference = "ml_src.cli.inference:main"
-ml-split = "ml_src.cli.splitting:main"
-ml-visualise = "ml_src.cli.visualise:main"
 ml-init-config = "ml_src.cli.init_config:main"
+ml-lr-finder = "ml_src.cli.lr_finder:main"
 ml-search = "ml_src.cli.search:main"
+ml-split = "ml_src.cli.splitting:main"
+ml-train = "ml_src.cli.train:main"
+ml-visualise = "ml_src.cli.visualise:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

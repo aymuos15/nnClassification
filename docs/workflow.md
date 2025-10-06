@@ -72,7 +72,60 @@ Customize model architecture, training parameters, or search space.
 
 ---
 
-## 4. Training
+## 4. Learning Rate Finder (Optional but Recommended)
+
+### Find Optimal Learning Rate
+```bash
+ml-lr-finder --config configs/my_dataset_config.yaml
+```
+Runs LR range test to find optimal learning rate before training.
+
+### Custom LR Range and Iterations
+```bash
+ml-lr-finder --config configs/my_dataset_config.yaml \
+  --start_lr 1e-7 \
+  --end_lr 1 \
+  --num_iter 200
+```
+Tests specific learning rate range over custom number of iterations.
+
+### Adjust Early Stopping Sensitivity
+```bash
+# More sensitive (stops earlier when loss increases)
+ml-lr-finder --config configs/my_dataset_config.yaml --diverge_threshold 2.0
+
+# Less sensitive (allows more loss increase before stopping)
+ml-lr-finder --config configs/my_dataset_config.yaml --diverge_threshold 6.0
+
+# Default behavior (stops when loss > 4x minimum)
+ml-lr-finder --config configs/my_dataset_config.yaml --diverge_threshold 4.0
+```
+Controls when early stopping triggers based on loss divergence.
+
+### Advanced Options
+```bash
+ml-lr-finder --config configs/my_dataset_config.yaml \
+  --start_lr 1e-7 \
+  --end_lr 1 \
+  --num_iter 200 \
+  --beta 0.95 \
+  --diverge_threshold 3.0 \
+  --fold 0
+```
+Combines multiple options for fine-grained control over LR range test.
+
+### Output
+```
+runs/lr_finder_TIMESTAMP/
+├── lr_plot.png              # Loss vs LR curve with suggested LR marked
+├── results.json             # Learning rates, losses, and suggested LR
+└── logs/
+    └── lr_finder.log        # Detailed logs
+```
+
+---
+
+## 5. Training
 
 ### Standard Training
 ```bash
@@ -121,7 +174,7 @@ Trains on multiple GPUs with automatic data parallelism.
 
 ---
 
-## 5. Hyperparameter Search (Optional)
+## 6. Hyperparameter Search (Optional)
 
 ### Run Hyperparameter Optimization
 ```bash
@@ -151,7 +204,7 @@ Uses automatically exported best configuration from search.
 
 ---
 
-## 6. Monitoring & Visualization
+## 7. Monitoring & Visualization
 
 ### Launch TensorBoard
 ```bash
@@ -216,7 +269,7 @@ Removes TensorBoard log files to save space.
 
 ---
 
-## 7. Inference
+## 8. Inference
 
 ### Run Inference on Test Set
 ```bash
@@ -242,7 +295,7 @@ Runs inference on validation set instead of test set.
 
 ---
 
-## 8. Cross-Validation Workflow
+## 9. Cross-Validation Workflow
 
 ### Train All Folds
 ```bash
@@ -264,7 +317,7 @@ Each fold produces independent results; manually aggregate metrics.
 
 ---
 
-## 9. Common Workflows
+## 10. Common Workflows
 
 ### Quick Start: Single Training Run
 ```bash
@@ -274,10 +327,13 @@ ml-split --raw_data data/my_dataset/raw --folds 5
 # 2. Generate config
 ml-init-config data/my_dataset --yes
 
-# 3. Train model
+# 3. (Optional) Find optimal learning rate
+ml-lr-finder --config configs/my_dataset_config.yaml
+
+# 4. Train model
 ml-train --config configs/my_dataset_config.yaml
 
-# 4. View results
+# 5. View results
 ml-visualise --mode launch --run_dir runs/my_dataset_fold_0
 ```
 
@@ -311,16 +367,20 @@ ml-visualise --mode launch --run_dir runs/my_dataset_*
 ml-split --raw_data data/my_dataset/raw --folds 5
 ml-init-config data/my_dataset --yes
 
-# 2. Edit config to enable mixed precision
-# Set training.trainer_type: 'mixed_precision'
+# 2. Find optimal learning rate
+ml-lr-finder --config configs/my_dataset_config.yaml
 
-# 3. Train with GPU acceleration
+# 3. Edit config to enable mixed precision and set suggested LR
+# Set training.trainer_type: 'mixed_precision'
+# Set optimizer.lr: <suggested_lr_from_finder>
+
+# 4. Train with GPU acceleration
 ml-train --config configs/my_dataset_config.yaml
 
-# 4. Evaluate on test set
+# 5. Evaluate on test set
 ml-inference --checkpoint_path runs/my_dataset_fold_0/weights/best.pt
 
-# 5. Monitor results
+# 6. Monitor results
 ml-visualise --mode launch --run_dir runs/my_dataset_fold_0
 ```
 
@@ -337,9 +397,27 @@ done
 # 3. Aggregate results manually from each fold's test metrics
 ```
 
+### Optimal Workflow: LR Finder + Training
+```bash
+# 1. Prepare data
+ml-split --raw_data data/my_dataset/raw --folds 5
+ml-init-config data/my_dataset --yes
+
+# 2. Find optimal learning rate
+ml-lr-finder --config configs/my_dataset_config.yaml
+# Check runs/lr_finder_TIMESTAMP/lr_plot.png for suggested LR
+
+# 3. Train with suggested learning rate
+ml-train --config configs/my_dataset_config.yaml --lr <suggested_lr>
+
+# 4. Monitor and evaluate
+ml-visualise --mode launch --run_dir runs/my_dataset_fold_0
+ml-inference --checkpoint_path runs/my_dataset_fold_0/weights/best.pt
+```
+
 ---
 
-## 10. Useful Tips
+## 11. Useful Tips
 
 ### Check Run Directory Structure
 ```bash
@@ -399,6 +477,15 @@ data/my_dataset/
 ```
 configs/
 └── my_dataset_config.yaml    # Generated configuration
+```
+
+### After ml-lr-finder (Optional)
+```
+runs/lr_finder_TIMESTAMP/
+├── lr_plot.png                # LR vs Loss curve with suggested LR
+├── results.json               # Learning rates, losses, suggested LR
+└── logs/
+    └── lr_finder.log          # Detailed logs
 ```
 
 ### After ml-train

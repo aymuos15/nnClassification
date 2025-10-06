@@ -126,30 +126,79 @@ ml-split \
 2025-10-05 01:30:05 | SUCCESS  | All 5 folds generated successfully!
 ```
 
-### Step 3: Update Configuration
+### Step 3: Generate Configuration
 
-Edit `ml_src/config.yaml`:
+```bash
+# Auto-generate config for your dataset
+ml-init-config data/my_dataset
 
-```yaml
-data:
-  dataset_name: 'my_dataset'  # Used in run directory naming
-  data_dir: 'data/my_dataset' # Base directory (contains raw/ and splits/)
-  fold: 0                      # Which fold to use (0-indexed)
-
-model:
-  num_classes: 3  # Number of your classes (must match class folders in raw/)
+# This creates: configs/my_dataset_config.yaml
 ```
 
-### Step 4: Train
+### Step 4: (Optional) Find Optimal Learning Rate
+
+Before training, you can find the optimal learning rate using LR range test:
+
+```bash
+# Run LR finder (basic)
+ml-lr-finder --config configs/my_dataset_config.yaml
+
+# Custom LR range and iterations
+ml-lr-finder --config configs/my_dataset_config.yaml --start_lr 1e-7 --end_lr 1 --num_iter 200
+
+# Adjust early stopping sensitivity (stops when loss > threshold × min_loss)
+ml-lr-finder --config configs/my_dataset_config.yaml --diverge_threshold 2.0  # More sensitive
+ml-lr-finder --config configs/my_dataset_config.yaml --diverge_threshold 6.0  # Less sensitive
+
+# Check the output plot
+# runs/lr_finder_TIMESTAMP/lr_plot.png shows suggested LR
+```
+
+The LR finder will:
+- Test learning rates from 1e-8 to 10.0 over 100 iterations
+- Generate a plot showing loss vs learning rate
+- Suggest an optimal learning rate (typically at steepest descent)
+- Stop early if loss diverges (controlled by `diverge_threshold`, default: 4.0)
+- Save results to `runs/lr_finder_TIMESTAMP/`
+
+You can then update your config with the suggested learning rate before training.
+
+### Step 5: Train
 
 ```bash
 # Train fold 0
-ml-train --fold 0
+ml-train --config configs/my_dataset_config.yaml --fold 0
 
 # Train other folds (for cross-validation)
-ml-train --fold 1
-ml-train --fold 2
+ml-train --config configs/my_dataset_config.yaml --fold 1
+ml-train --config configs/my_dataset_config.yaml --fold 2
 ```
+
+### Step 6: (Optional) Export for Deployment
+
+After training, export your best model to ONNX format for deployment:
+
+```bash
+# Export model to ONNX
+ml-export --checkpoint runs/my_dataset_base_fold_0/weights/best.pt
+
+# Export with validation to ensure correctness
+ml-export --checkpoint runs/my_dataset_base_fold_0/weights/best.pt --validate
+
+# Export with comprehensive validation and benchmarking
+ml-export --checkpoint runs/my_dataset_base_fold_0/weights/best.pt \
+  --comprehensive-validate --benchmark
+```
+
+The exported ONNX model will be saved next to the checkpoint:
+- `runs/my_dataset_base_fold_0/weights/best.onnx`
+
+ONNX models can be deployed to:
+- ONNX Runtime (CPU/GPU)
+- TensorRT (NVIDIA GPUs)
+- OpenVINO (Intel hardware)
+- Mobile devices (iOS/Android)
+- Web browsers (ONNX.js)
 
 ---
 
@@ -289,21 +338,31 @@ watch -n 1 nvidia-smi
 # Generate CV splits (one time per dataset)
 ml-split --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
 
+# Generate config
+ml-init-config data/my_dataset
+
+# === LEARNING RATE FINDER (OPTIONAL) ===
+ml-lr-finder --config configs/my_dataset_config.yaml  # Find optimal LR
+ml-lr-finder --config configs/my_dataset_config.yaml --diverge_threshold 2.0  # More sensitive stopping
+
 # === TRAINING ===
-ml-train --fold 0                                 # Basic training
-ml-train --fold 0 --num_epochs 50                 # More epochs
-ml-train --fold 0 --batch_size 32                 # Different batch size
-ml-train --fold 0 --lr 0.01                       # Different learning rate
-ml-train --dataset_name custom --data_dir data/custom --fold 0  # Custom dataset
+ml-train --config configs/my_dataset_config.yaml --fold 0    # Basic training
+ml-train --config configs/my_dataset_config.yaml --fold 0 --num_epochs 50   # More epochs
+ml-train --config configs/my_dataset_config.yaml --fold 0 --batch_size 32   # Different batch size
+ml-train --config configs/my_dataset_config.yaml --fold 0 --lr 0.01         # Different learning rate
 ml-train --resume runs/hymenoptera_base_fold_0/last.pt  # Resume training
 
 # Train all folds (cross-validation)
 for fold in {0..4}; do
-  ml-train --fold $fold --batch_size 32 --lr 0.01
+  ml-train --config configs/my_dataset_config.yaml --fold $fold
 done
 
 # === INFERENCE ===
-ml-inference --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt
+
+# === EXPORT (DEPLOYMENT) ===
+ml-export --checkpoint runs/hymenoptera_base_fold_0/weights/best.pt  # Export to ONNX
+ml-export --checkpoint runs/hymenoptera_base_fold_0/weights/best.pt --validate  # With validation
 
 # === MONITORING ===
 tensorboard --logdir runs/                              # View all runs
@@ -322,34 +381,47 @@ ls runs/                                                # List training runs
 
 ### Typical Workflow
 
-1. **Quick test** (verify everything works):
+1. **Prepare dataset** (one-time setup):
    ```bash
-   ml-train --fold 0 --num_epochs 3
+   ml-split --raw_data data/my_dataset/raw --folds 5
+   ml-init-config data/my_dataset
    ```
 
-2. **Check results** in TensorBoard:
+2. **Find optimal learning rate** (optional but recommended):
+   ```bash
+   ml-lr-finder --config configs/my_dataset_config.yaml
+   # Check runs/lr_finder_TIMESTAMP/lr_plot.png for suggested LR
+   # Update config with suggested LR
+   ```
+
+3. **Quick test** (verify everything works):
+   ```bash
+   ml-train --config configs/my_dataset_config.yaml --fold 0 --num_epochs 3
+   ```
+
+4. **Check results** in TensorBoard:
    ```bash
    tensorboard --logdir runs/
    ```
 
-3. **Tune hyperparameters** (try different values on fold 0):
+5. **Tune hyperparameters** (try different values on fold 0):
    ```bash
-   ml-train --fold 0 --lr 0.001 --batch_size 32 --num_epochs 20
-   ml-train --fold 0 --lr 0.01 --batch_size 32 --num_epochs 20
-   ml-train --fold 0 --lr 0.01 --batch_size 64 --num_epochs 20
+   ml-train --config configs/my_dataset_config.yaml --fold 0 --lr 0.001 --batch_size 32 --num_epochs 20
+   ml-train --config configs/my_dataset_config.yaml --fold 0 --lr 0.01 --batch_size 32 --num_epochs 20
+   ml-train --config configs/my_dataset_config.yaml --fold 0 --lr 0.01 --batch_size 64 --num_epochs 20
    ```
 
-4. **Full training** (with best hyperparams on all folds):
+6. **Full training** (with best hyperparams on all folds):
    ```bash
    for fold in {0..4}; do
-     ml-train --fold $fold --lr 0.01 --batch_size 64 --num_epochs 100
+     ml-train --config configs/my_dataset_config.yaml --fold $fold --lr 0.01 --batch_size 64 --num_epochs 100
    done
    ```
 
-5. **Evaluate** on test sets:
+7. **Export best models** for deployment:
    ```bash
    for fold in {0..4}; do
-     ml-inference --run_dir runs/my_dataset_lr_0.01_batch_64_epochs_100_fold_$fold --checkpoint best.pt
+     ml-export --checkpoint runs/my_dataset_lr_0.01_batch_64_epochs_100_fold_$fold/weights/best.pt --validate
    done
    ```
 
@@ -525,17 +597,25 @@ if torch.cuda.is_available():
 ```bash
 # === SETUP (one time per dataset) ===
 ml-split --raw_data data/my_dataset/raw --output data/my_dataset/splits --folds 5
+ml-init-config data/my_dataset
+
+# === FIND OPTIMAL LR (OPTIONAL) ===
+ml-lr-finder --config configs/my_dataset_config.yaml
+ml-lr-finder --config configs/my_dataset_config.yaml --start_lr 1e-7 --end_lr 1  # Custom range
 
 # === TRAINING ===
-ml-train --fold 0                         # Default
-ml-train --fold 0 --num_epochs 50         # Custom epochs
-ml-train --fold 0 --batch_size 32 --lr 0.01  # Custom params
+ml-train --config configs/my_dataset_config.yaml --fold 0                    # Default
+ml-train --config configs/my_dataset_config.yaml --fold 0 --num_epochs 50    # Custom epochs
+ml-train --config configs/my_dataset_config.yaml --fold 0 --batch_size 32 --lr 0.01  # Custom params
 
 # === CROSS-VALIDATION ===
-for fold in {0..4}; do ml-train --fold $fold; done
+for fold in {0..4}; do ml-train --config configs/my_dataset_config.yaml --fold $fold; done
 
 # === INFERENCE ===
-ml-inference --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt
+
+# === EXPORT ===
+ml-export --checkpoint runs/hymenoptera_base_fold_0/weights/best.pt --validate
 
 # === MONITORING ===
 tensorboard --logdir runs/

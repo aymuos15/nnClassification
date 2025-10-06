@@ -18,10 +18,13 @@ uv pip install -e ".[dev]"
 
 After installation, you can use the CLI commands from anywhere:
 - `ml-init-config` - Generate dataset-specific configuration
+- `ml-split` - Create dataset splits
+- `ml-lr-finder` - Find optimal learning rate
 - `ml-train` - Train models
 - `ml-inference` - Run inference
-- `ml-split` - Create dataset splits
+- `ml-export` - Export models to ONNX format
 - `ml-visualise` - Visualize data and predictions
+- `ml-search` - Hyperparameter optimization (optional)
 
 ### Data Structure (MANDATORY)
 
@@ -66,7 +69,11 @@ ml-init-config data/my_dataset \
 # Step 3: (Optional) Edit the generated config
 vim configs/my_dataset_config.yaml
 
-# Step 4: Train on fold 0 (automatically tests on held-out test set after training)
+# Step 4: (Optional) Find optimal learning rate before training
+ml-lr-finder --config configs/my_dataset_config.yaml
+# Check runs/lr_finder_TIMESTAMP/lr_plot.png for suggested LR
+
+# Step 5: Train on fold 0 (automatically tests on held-out test set after training)
 ml-train --config configs/my_dataset_config.yaml
 
 # Custom hyperparameters via CLI (overrides config)
@@ -83,10 +90,20 @@ ml-train --config configs/my_dataset_config.yaml --resume runs/my_dataset_fold_0
 
 **Note:** After training completes, the model is automatically evaluated on the test set. Test results are saved to `runs/{run_name}/logs/classification_report_test.txt` and logged to TensorBoard.
 
-### Inference (Optional)
+### Inference & Export
 ```bash
 # Run inference manually on a specific checkpoint
 ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt
+
+# Export model to ONNX format for deployment
+ml-export --checkpoint runs/my_dataset_base_fold_0/weights/best.pt
+# Creates: runs/my_dataset_base_fold_0/weights/best.onnx
+
+# Export with validation
+ml-export --checkpoint runs/my_dataset_base_fold_0/weights/best.pt --validate
+
+# Export with comprehensive validation and benchmarking
+ml-export --checkpoint runs/my_dataset_base_fold_0/weights/best.pt --comprehensive-validate --benchmark
 ```
 
 ### Visualization

@@ -85,6 +85,8 @@ nav:
     - Resuming Training: user-guides/resuming-training.md
     - Monitoring: user-guides/monitoring.md
     - Hyperparameter Tuning: user-guides/hyperparameter-tuning.md
+    - LR Finder: user-guides/lr-finder.md
+    - Model Export: user-guides/model-export.md
 
   - Architecture:
     - Overview: architecture/README.md

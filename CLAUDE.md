@@ -62,6 +62,11 @@ ml-init-config data/my_dataset --optuna
 # Create cross-validation splits
 ml-split --raw_data data/my_dataset/raw --folds 5
 
+# Find optimal learning rate (optional, before training)
+ml-lr-finder --config configs/my_dataset_config.yaml
+ml-lr-finder --config configs/my_dataset_config.yaml --start_lr 1e-7 --end_lr 1 --num_iter 200
+ml-lr-finder --config configs/my_dataset_config.yaml --diverge_threshold 2.0  # More sensitive early stopping
+
 # Train model
 ml-train --config configs/my_dataset_config.yaml
 
@@ -70,6 +75,10 @@ ml-search --config configs/my_dataset_config.yaml --n-trials 50
 
 # Run inference
 ml-inference --checkpoint_path runs/my_run/weights/best.pt
+
+# Export model to ONNX for deployment
+ml-export --checkpoint runs/my_run/weights/best.pt
+ml-export --checkpoint runs/my_run/weights/best.pt --validate --benchmark
 
 # Visualize with TensorBoard
 ml-visualise --mode launch --run_dir runs/my_run
@@ -86,11 +95,13 @@ ml-visualise --mode search --study-name my_study
 ml_src/
 ├── cli/                    # CLI entry points (installed as console scripts)
 │   ├── init_config.py      # ml-init-config: Generate dataset configs
+│   ├── splitting.py        # ml-split: CV split generator
+│   ├── lr_finder.py        # ml-lr-finder: Learning rate range test
 │   ├── train.py            # ml-train: Main training orchestrator (uses get_trainer)
 │   ├── inference.py        # ml-inference: Test/inference runner
-│   ├── splitting.py        # ml-split: CV split generator
-│   ├── search.py           # ml-search: Hyperparameter optimization with Optuna
-│   └── visualise.py        # ml-visualise: TensorBoard + search visualization
+│   ├── export.py           # ml-export: ONNX model export
+│   ├── visualise.py        # ml-visualise: TensorBoard + search visualization
+│   └── search.py           # ml-search: Hyperparameter optimization with Optuna
 │
 └── core/                   # Reusable ML components (no CLI dependencies)
     ├── dataset.py          # IndexedImageDataset (index-based loading)
@@ -108,9 +119,16 @@ ml_src/
     │   └── differential_privacy.py  # DPTrainer: Opacus differential privacy
     ├── loss.py             # Loss functions
     ├── optimizer.py        # Optimizers and schedulers
+    ├── lr_finder.py        # Learning rate finder implementation
+    ├── export.py           # ONNX export utilities
     ├── search.py           # Hyperparameter search utilities (Optuna wrapper)
     ├── test.py             # Evaluation/testing
-    ├── metrics.py          # Classification reports, confusion matrices
+    ├── metrics/            # Comprehensive metrics suite
+    │   ├── __init__.py     # Metrics API
+    │   ├── classification.py  # Classification-specific metrics
+    │   ├── utils.py        # Metric utilities
+    │   ├── visualization.py   # Metric visualization
+    │   └── onnx_validation.py # ONNX model validation and benchmarking
     ├── checkpointing.py    # Checkpoint save/load, summaries
     ├── seeding.py          # Reproducibility (seed setting)
     └── visual/             # Visualization utilities
@@ -326,7 +344,8 @@ See [Advanced Training Guide](docs/user-guides/advanced-training.md) for detaile
 2. Run `ml-split --raw_data data/{name}/raw --folds 5`
 3. Run `ml-init-config data/{name}` → creates `configs/{name}_config.yaml`
 4. Edit config if needed (model architecture, hyperparameters, trainer type)
-5. Run `ml-train --config configs/{name}_config.yaml`
+5. (Optional) Run `ml-lr-finder --config configs/{name}_config.yaml` to find optimal LR
+6. Run `ml-train --config configs/{name}_config.yaml`
 
 ### Resuming Training
 ```bash
@@ -342,6 +361,80 @@ ml-train --config configs/my_config.yaml --fold 1
 ml-train --config configs/my_config.yaml --fold 2
 ```
 Test set is identical across all folds; only train/val splits differ.
+
+### Learning Rate Finder
+
+Find optimal learning rate before training using LR range test:
+
+```bash
+# Basic usage
+ml-lr-finder --config configs/my_config.yaml
+
+# Custom LR range and iterations
+ml-lr-finder --config configs/my_config.yaml --start_lr 1e-7 --end_lr 1 --num_iter 200
+
+# Use specific fold
+ml-lr-finder --config configs/my_config.yaml --fold 2
+
+# Adjust smoothing (lower beta = less smoothing)
+ml-lr-finder --config configs/my_config.yaml --beta 0.95
+
+# Control early stopping sensitivity (default: 4.0)
+ml-lr-finder --config configs/my_config.yaml --diverge_threshold 2.0  # Stops earlier
+ml-lr-finder --config configs/my_config.yaml --diverge_threshold 6.0  # Allows more loss increase
+```
+
+**Output:**
+- `runs/lr_finder_TIMESTAMP/lr_plot.png`: LR vs Loss curve with suggested LR marked
+- `runs/lr_finder_TIMESTAMP/results.json`: Learning rates, losses, and suggested LR
+- `runs/lr_finder_TIMESTAMP/lr_finder.log`: Detailed logs
+
+**Usage tips:**
+- Suggested LR is typically 1/10th of the LR at steepest descent point
+- Run before training to find good initial learning rate
+- The tool tests LRs from start_lr to end_lr over num_iter iterations
+- Loss is smoothed using exponential moving average (beta parameter)
+- Early stopping triggers when `loss > diverge_threshold × min_loss` (default: 4.0)
+
+### Model Export
+
+Export trained models to ONNX format for deployment:
+
+```bash
+# Basic export
+ml-export --checkpoint runs/my_run/weights/best.pt
+# Creates: runs/my_run/weights/best.onnx
+
+# Export with basic validation
+ml-export --checkpoint runs/my_run/weights/best.pt --validate
+
+# Export with comprehensive validation (uses test loader)
+ml-export --checkpoint runs/my_run/weights/best.pt --comprehensive-validate
+
+# Export with benchmarking
+ml-export --checkpoint runs/my_run/weights/best.pt --benchmark
+
+# Batch export multiple checkpoints
+ml-export --checkpoint "runs/*/weights/best.pt" --validate
+
+# Custom output path and opset version
+ml-export --checkpoint runs/my_run/weights/best.pt --output model.onnx --opset 14
+
+# Specify input size (auto-detected if not provided)
+ml-export --checkpoint runs/my_run/weights/best.pt --input_size 224 224
+```
+
+**Features:**
+- **Basic validation**: Checks model can be loaded and runs forward pass
+- **Comprehensive validation**: Compares PyTorch vs ONNX outputs on test data
+- **Benchmarking**: Measures inference speed (PyTorch vs ONNX)
+- **Batch export**: Use glob patterns to export multiple checkpoints
+- **Auto-detection**: Input size and opset version auto-detected from checkpoint
+
+**Output:**
+- `{checkpoint_name}.onnx`: Exported ONNX model
+- `validation_report.json`: Validation results (if --validate or --comprehensive-validate used)
+- Console logs with detailed validation metrics and benchmarks
 
 ### Hyperparameter Search (Optional)
 
@@ -452,7 +545,8 @@ Documentation built with MkDocs Material theme, deployed to GitHub Pages.
 
 - Build system: setuptools
 - Dependencies defined in `pyproject.toml`
-- Console scripts: `ml-train`, `ml-inference`, `ml-split`, `ml-visualise`, `ml-init-config`, `ml-search`
+- Console scripts: `ml-init-config`, `ml-split`, `ml-lr-finder`, `ml-train`, `ml-inference`, `ml-export`, `ml-visualise`, `ml-search`
+- Core dependencies include: torch, torchvision, matplotlib, onnx, onnxruntime (for export functionality)
 - Optional dependencies:
   - Dev: `uv pip install -e ".[dev]"` (pytest, ruff, mkdocs)
   - Differential Privacy: `uv pip install -e ".[dp]"` (opacus)

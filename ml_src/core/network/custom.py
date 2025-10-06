@@ -116,8 +116,12 @@ class TinyNet(nn.Module):
         >>> model = TinyNet(num_classes=2, input_size=224)
     """
 
-    def __init__(self, num_classes, input_size=224):
+    def __init__(self, num_classes, input_size=224, **kwargs):
         super().__init__()
+        
+        # Ignore extra kwargs (like dropout) for compatibility
+        if kwargs:
+            logger.debug(f"TinyNet ignoring extra arguments: {list(kwargs.keys())}")
 
         self.conv1 = nn.Conv2d(3, 16, kernel_size=5, padding=2)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=5, padding=2)
