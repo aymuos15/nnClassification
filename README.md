@@ -92,8 +92,23 @@ ml-train --config configs/my_dataset_config.yaml --resume runs/my_dataset_fold_0
 
 ### Inference & Export
 ```bash
-# Run inference manually on a specific checkpoint
+# Standard inference
 ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt
+
+# Test-Time Augmentation (TTA) for +1-3% accuracy
+ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt --tta
+
+# Ensemble multiple models for +2-5% accuracy
+ml-inference --ensemble \
+  runs/my_dataset_fold_0/weights/best.pt \
+  runs/my_dataset_fold_1/weights/best.pt \
+  runs/my_dataset_fold_2/weights/best.pt
+
+# TTA + Ensemble for maximum accuracy (+3-8%)
+ml-inference --ensemble \
+  runs/my_dataset_fold_0/weights/best.pt \
+  runs/my_dataset_fold_1/weights/best.pt \
+  --tta
 
 # Export model to ONNX format for deployment
 ml-export --checkpoint runs/my_dataset_base_fold_0/weights/best.pt

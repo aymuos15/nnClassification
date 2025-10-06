@@ -30,7 +30,8 @@ Complete reference for all modules in the `ml_src/` package.
 | `optimizer.py` | Optimization | get_optimizer, get_scheduler |
 | `seeding.py` | Reproducibility | set_seed, seed_worker |
 | `test.py` | Evaluation | evaluate_model (legacy wrapper) |
-| `inference/` | Inference strategies | StandardInference, MixedPrecisionInference, AccelerateInference |
+| `inference/` | Inference strategies | StandardInference, MixedPrecisionInference, AccelerateInference, TTAInference, EnsembleInference, TTAEnsembleInference |
+| `transforms/` | Transform utilities | TTATransform, aggregate_predictions |
 | `trainers/` | Training strategies | StandardTrainer, MixedPrecisionTrainer, AccelerateTrainer, DPTrainer |
 
 ### Configuration
