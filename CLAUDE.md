@@ -114,7 +114,12 @@ ml_src/
 │   └── search.py           # ml-search: Hyperparameter optimization with Optuna
 │
 └── core/                   # Reusable ML components (no CLI dependencies)
-    ├── dataset.py          # IndexedImageDataset (index-based loading)
+    ├── data/               # Dataset handling and analysis
+    │   ├── __init__.py     # Data module API
+    │   ├── datasets.py     # IndexedImageDataset (index-based loading)
+    │   ├── splitting.py    # Dataset detection utilities
+    │   ├── statistics.py   # Dataset statistics and validation
+    │   └── visualize_stats.py  # Statistics visualization
     ├── loader.py           # DataLoader creation
     ├── network/            # Model architectures
     │   ├── __init__.py     # get_model() API (routes base vs custom)
@@ -122,11 +127,14 @@ ml_src/
     │   └── custom.py       # Custom architectures (SimpleCNN, TinyNet)
     ├── trainers/           # Specialized trainer implementations
     │   ├── __init__.py     # get_trainer() factory function
-    │   ├── base.py         # BaseTrainer abstract class (with Optuna trial support)
+    │   ├── base.py         # BaseTrainer abstract class (with EMA and Optuna support)
     │   ├── standard.py     # StandardTrainer: Traditional PyTorch training
     │   ├── mixed_precision.py  # MixedPrecisionTrainer: PyTorch AMP
     │   ├── accelerate.py   # AccelerateTrainer: Multi-GPU with Accelerate
     │   └── differential_privacy.py  # DPTrainer: Opacus differential privacy
+    ├── training/           # Training utilities
+    │   ├── __init__.py     # Training utilities API
+    │   └── ema.py          # ModelEMA: Exponential Moving Average
     ├── inference/          # Inference strategies for test-time optimization
     │   ├── __init__.py     # get_inference_strategy() factory function
     │   ├── base.py         # BaseInferenceStrategy abstract class
@@ -144,14 +152,14 @@ ml_src/
     ├── lr_finder.py        # Learning rate finder implementation
     ├── export.py           # ONNX export utilities
     ├── search.py           # Hyperparameter search utilities (Optuna wrapper)
-    ├── test.py             # Evaluation/testing
+    ├── test.py             # Evaluation/testing (deprecated)
     ├── metrics/            # Comprehensive metrics suite
     │   ├── __init__.py     # Metrics API
     │   ├── classification.py  # Classification-specific metrics
     │   ├── utils.py        # Metric utilities
     │   ├── visualization.py   # Metric visualization
     │   └── onnx_validation.py # ONNX model validation and benchmarking
-    ├── checkpointing.py    # Checkpoint save/load, summaries
+    ├── checkpointing.py    # Checkpoint save/load with EMA support
     ├── seeding.py          # Reproducibility (seed setting)
     └── visual/             # Visualization utilities
         ├── tensorboard.py  # TensorBoard dataset/prediction visualization
@@ -430,6 +438,76 @@ For privacy-sensitive data (medical, financial). Slower and requires hyperparame
 - CPU only or learning? → `standard`
 
 See [Advanced Training Guide](docs/user-guides/advanced-training.md) for detailed documentation.
+
+### Model EMA (Exponential Moving Average)
+
+**What is EMA?**
+Maintains a "shadow" copy of model weights updated as an exponential moving average during training. Typically improves test accuracy by **0.5-2%** with zero additional training cost. Used in SOTA models (YOLO, Stable Diffusion).
+
+**How it works:**
+- After each `optimizer.step()`: `ema_weight = decay * ema_weight + (1-decay) * current_weight`
+- Separate validation pass with EMA model each epoch
+- Both regular and EMA metrics logged to TensorBoard
+
+**Enable in config:**
+```yaml
+training:
+  ema:
+    enabled: true
+    decay: 0.9999      # 0.999-0.9999 typical (higher = slower update)
+    warmup_steps: 2000  # Optional: skip first N training steps
+```
+
+**TensorBoard metrics:**
+- `Accuracy/val` - Regular model validation accuracy
+- `Accuracy/val_ema` - EMA model validation accuracy (typically 0.5-2% higher!)
+
+**Checkpointing:**
+- EMA state automatically saved in checkpoints
+- Resume training with EMA intact
+- Backward compatible (old checkpoints without EMA work fine)
+
+**When to use:**
+- Production deployments (more stable predictions)
+- Competitive benchmarks (free accuracy gain)
+- Any scenario where test performance matters
+
+### Dataset Statistics & Validation
+
+**What it does:**
+Comprehensive dataset analysis to detect issues before training:
+- Class distribution & imbalance detection (warns if ratio > 3:1)
+- Image statistics (sizes, aspect ratios, color modes)
+- Data quality checks (corrupted files)
+- Automatic warnings and recommendations
+
+**Usage:**
+```python
+from ml_src.core.data import analyze_dataset, generate_statistics_report, generate_all_plots
+
+# Analyze dataset
+stats = analyze_dataset('data/my_dataset/raw', sample_size=500)
+
+# Generate text report
+generate_statistics_report(stats, 'data/my_dataset/splits/statistics.txt')
+
+# Generate visualization plots (class distribution, image sizes)
+generate_all_plots(stats, 'data/my_dataset/splits/statistics/')
+
+# Check for issues
+if stats['imbalance_ratio'] > 3.0:
+    print("⚠️ Dataset is imbalanced - consider focal loss or class weights")
+```
+
+**Output files:**
+- `statistics.txt` - Human-readable report with warnings
+- `statistics/class_distribution.png` - Bar chart of class counts
+- `statistics/image_statistics.png` - Size/aspect ratio histograms
+
+**When to use:**
+- Before training (detect imbalance, corruption, size issues)
+- When configuring training (inform decisions about loss functions, augmentation)
+- For documentation (reproducibility, dataset characteristics)
 
 ### Training a New Dataset
 1. Organize data in `data/{name}/raw/class1/`, `data/{name}/raw/class2/`, etc.

@@ -142,6 +142,36 @@ Or use TensorBoard directly:
 tensorboard --logdir runs/
 ```
 
+### Dataset Statistics (Optional but Recommended)
+
+```python
+# Analyze dataset before training
+from ml_src.core.data import analyze_dataset, generate_statistics_report, generate_all_plots
+
+stats = analyze_dataset('data/my_dataset/raw')
+generate_statistics_report(stats, 'data/my_dataset/splits/statistics.txt')
+generate_all_plots(stats, 'data/my_dataset/splits/statistics/')
+
+# Check for issues
+if stats['imbalance_ratio'] > 3.0:
+    print("⚠️ Dataset is imbalanced - consider focal loss or class weights")
+```
+
+### Model EMA (Exponential Moving Average)
+
+Enable EMA for **0.5-2% accuracy improvement** with zero training cost:
+
+```yaml
+# In your config file
+training:
+  ema:
+    enabled: true
+    decay: 0.9999      # 0.999-0.9999 typical
+    warmup_steps: 2000  # Optional
+```
+
+EMA maintains a shadow copy of model weights for better generalization. Both regular and EMA validation metrics are logged to TensorBoard (`Accuracy/val` and `Accuracy/val_ema`).
+
 ## Configuration
 
 Generate dataset-specific configs with `ml-init-config`, then use CLI overrides:
