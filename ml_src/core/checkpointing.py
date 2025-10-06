@@ -23,6 +23,7 @@ def save_checkpoint(
     config,
     checkpoint_path,
     early_stopping_state=None,
+    ema_state=None,
 ):
     """
     Save a comprehensive training checkpoint.
@@ -40,6 +41,7 @@ def save_checkpoint(
         config: Configuration dictionary
         checkpoint_path: Path to save the checkpoint
         early_stopping_state: Early stopping state dict (optional)
+        ema_state: EMA state dict (optional)
     """
     checkpoint = {
         "epoch": epoch,
@@ -67,6 +69,10 @@ def save_checkpoint(
     if early_stopping_state is not None:
         checkpoint["early_stopping_state"] = early_stopping_state
 
+    # Save EMA state if provided
+    if ema_state is not None:
+        checkpoint["ema_state"] = ema_state
+
     torch.save(checkpoint, checkpoint_path)
     logger.debug(f"Saved checkpoint to {checkpoint_path}")
 
@@ -84,7 +90,7 @@ def load_checkpoint(checkpoint_path, model, optimizer, scheduler, device):
 
     Returns:
         Tuple of (epoch, best_acc, train_losses, val_losses, train_accs, val_accs, config,
-        early_stopping_state)
+        early_stopping_state, ema_state)
     """
     if not os.path.exists(checkpoint_path):
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
@@ -113,6 +119,7 @@ def load_checkpoint(checkpoint_path, model, optimizer, scheduler, device):
     val_accs = checkpoint.get("val_accs", [])
     config = checkpoint.get("config", None)
     early_stopping_state = checkpoint.get("early_stopping_state", None)
+    ema_state = checkpoint.get("ema_state", None)
 
     logger.success(f"Resumed from epoch {epoch}, best accuracy: {best_acc:.4f}")
 
@@ -125,6 +132,7 @@ def load_checkpoint(checkpoint_path, model, optimizer, scheduler, device):
         val_accs,
         config,
         early_stopping_state,
+        ema_state,
     )
 
 

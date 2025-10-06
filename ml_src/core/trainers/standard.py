@@ -108,6 +108,7 @@ class StandardTrainer(BaseTrainer):
         - Training metrics history
         - Random states for reproducibility
         - Early stopping state (if enabled)
+        - EMA state (if enabled)
 
         Args:
             epoch: Current epoch number
@@ -119,6 +120,11 @@ class StandardTrainer(BaseTrainer):
         early_stopping_state = None
         if self.early_stopping is not None:
             early_stopping_state = self.early_stopping.get_state()
+
+        # Get EMA state if enabled
+        ema_state = None
+        if self.ema is not None:
+            ema_state = self.ema.state_dict()
 
         save_checkpoint(
             model=self.model,
@@ -133,6 +139,7 @@ class StandardTrainer(BaseTrainer):
             config=self.config,
             checkpoint_path=path,
             early_stopping_state=early_stopping_state,
+            ema_state=ema_state,
         )
 
     def load_checkpoint(self, path):
@@ -146,6 +153,7 @@ class StandardTrainer(BaseTrainer):
         - Training metrics history
         - Random states for reproducibility
         - Early stopping state (if available)
+        - EMA state (if available)
 
         Args:
             path: Path to the checkpoint file
@@ -164,6 +172,7 @@ class StandardTrainer(BaseTrainer):
             val_accs,
             _,
             early_stopping_state,
+            ema_state,
         ) = load_checkpoint(
             checkpoint_path=path,
             model=self.model,
@@ -176,5 +185,10 @@ class StandardTrainer(BaseTrainer):
         if early_stopping_state is not None and self.early_stopping is not None:
             self.early_stopping.load_state(early_stopping_state)
             logger.success("Restored early stopping state from checkpoint")
+
+        # Restore EMA state if available
+        if ema_state is not None and self.ema is not None:
+            self.ema.load_state_dict(ema_state)
+            logger.success("Restored EMA state from checkpoint")
 
         return epoch, best_acc, train_losses, val_losses, train_accs, val_accs

@@ -56,6 +56,19 @@ training:
   num_epochs: 3
   device: 'cuda:0'  # Will fallback to cpu if cuda not available
 
+  # Model EMA (Exponential Moving Average) configuration
+  # EMA maintains a shadow copy of model weights updated as a moving average during training.
+  # Often improves test accuracy by 0.5-2% with no additional training cost.
+  # Recommended for production deployments and competitive benchmarks.
+  ema:
+    enabled: false           # Enable EMA (default: false)
+    decay: 0.9999            # Decay rate for EMA updates (0.999-0.9999 typical)
+                             # Higher decay = slower update, smoother weights
+                             # Common values: 0.999 (fast), 0.9999 (standard), 0.99999 (slow)
+    warmup_steps: 0          # Skip EMA updates for first N training steps (default: 0)
+                             # Useful to let model stabilize before tracking EMA
+                             # Typical: 0 (no warmup) or 2000-5000 (with warmup)
+
   # Early stopping configuration
   early_stopping:
     enabled: false         # Enable early stopping to prevent overfitting
