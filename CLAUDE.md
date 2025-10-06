@@ -11,7 +11,7 @@ Production-ready PyTorch image classification framework with flexible architectu
 ### Installation & Setup
 ```bash
 # Install in editable mode with dev dependencies
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 ```
 
 ### Testing
@@ -56,17 +56,26 @@ mkdocs gh-deploy
 # Generate dataset configuration
 ml-init-config data/my_dataset
 
+# Generate configuration with hyperparameter search (optional)
+ml-init-config data/my_dataset --optuna
+
 # Create cross-validation splits
 ml-split --raw_data data/my_dataset/raw --folds 5
 
 # Train model
 ml-train --config configs/my_dataset_config.yaml
 
+# Run hyperparameter search (requires: uv pip install -e ".[optuna]")
+ml-search --config configs/my_dataset_config.yaml --n-trials 50
+
 # Run inference
 ml-inference --checkpoint_path runs/my_run/weights/best.pt
 
 # Visualize with TensorBoard
 ml-visualise --mode launch --run_dir runs/my_run
+
+# Visualize hyperparameter search results
+ml-visualise --mode search --study-name my_study
 ```
 
 ## Architecture
@@ -80,7 +89,8 @@ ml_src/
 │   ├── train.py            # ml-train: Main training orchestrator (uses get_trainer)
 │   ├── inference.py        # ml-inference: Test/inference runner
 │   ├── splitting.py        # ml-split: CV split generator
-│   └── visualise.py        # ml-visualise: TensorBoard utilities
+│   ├── search.py           # ml-search: Hyperparameter optimization with Optuna
+│   └── visualise.py        # ml-visualise: TensorBoard + search visualization
 │
 └── core/                   # Reusable ML components (no CLI dependencies)
     ├── dataset.py          # IndexedImageDataset (index-based loading)
@@ -91,17 +101,22 @@ ml_src/
     │   └── custom.py       # Custom architectures (SimpleCNN, TinyNet)
     ├── trainers/           # Specialized trainer implementations
     │   ├── __init__.py     # get_trainer() factory function
-    │   ├── base.py         # BaseTrainer abstract class
+    │   ├── base.py         # BaseTrainer abstract class (with Optuna trial support)
     │   ├── standard.py     # StandardTrainer: Traditional PyTorch training
     │   ├── mixed_precision.py  # MixedPrecisionTrainer: PyTorch AMP
     │   ├── accelerate.py   # AccelerateTrainer: Multi-GPU with Accelerate
     │   └── differential_privacy.py  # DPTrainer: Opacus differential privacy
     ├── loss.py             # Loss functions
     ├── optimizer.py        # Optimizers and schedulers
+    ├── search.py           # Hyperparameter search utilities (Optuna wrapper)
     ├── test.py             # Evaluation/testing
     ├── metrics.py          # Classification reports, confusion matrices
     ├── checkpointing.py    # Checkpoint save/load, summaries
-    └── seeding.py          # Reproducibility (seed setting)
+    ├── seeding.py          # Reproducibility (seed setting)
+    └── visual/             # Visualization utilities
+        ├── tensorboard.py  # TensorBoard dataset/prediction visualization
+        ├── search.py       # Optuna study visualization
+        └── server.py       # TensorBoard server management
 ```
 
 ### Key Design Principles
@@ -267,7 +282,7 @@ Requires modern NVIDIA GPU (Volta/Turing/Ampere or newer). Provides significant 
 **Multi-GPU/Distributed**:
 ```bash
 # One-time setup
-pip install accelerate
+uv pip install accelerate
 accelerate config
 
 # Launch training
@@ -284,7 +299,7 @@ Requires `accelerate` package. Supports multi-GPU, distributed training, and TPU
 
 **Differential Privacy**:
 ```bash
-pip install opacus
+uv pip install opacus
 ```
 Config:
 ```yaml
@@ -328,6 +343,91 @@ ml-train --config configs/my_config.yaml --fold 2
 ```
 Test set is identical across all folds; only train/val splits differ.
 
+### Hyperparameter Search (Optional)
+
+**Installation:**
+```bash
+uv pip install -e ".[optuna]"
+```
+
+**Generate config with search space:**
+```bash
+ml-init-config data/my_dataset --optuna
+```
+
+**Run optimization:**
+```bash
+# Run hyperparameter search
+ml-search --config configs/my_config.yaml --n-trials 50
+
+# Resume existing study
+ml-search --config configs/my_config.yaml --resume
+
+# Override study name
+ml-search --config configs/my_config.yaml --study-name custom_study
+```
+
+**Visualize results:**
+```bash
+# Generate all plots
+ml-visualise --mode search --study-name my_study
+
+# Generate specific plot types
+ml-visualise --mode search --study-name my_study --plot-type optimization_history
+ml-visualise --mode search --study-name my_study --plot-type param_importances
+ml-visualise --mode search --study-name my_study --plot-type contour --params lr batch_size
+```
+
+**Train with best hyperparameters:**
+```bash
+ml-train --config runs/optuna_studies/my_study/best_config.yaml
+```
+
+**Features:**
+- **Opt-in**: Requires `--optuna` flag in `ml-init-config` (disabled by default)
+- **Search space**: Supports categorical, uniform, loguniform, int parameters
+- **Samplers**: TPE (default), Random, CMA-ES, Grid
+- **Pruning**: MedianPruner, PercentilePruner, HyperbandPruner for early trial termination
+- **Storage**: SQLite (default), PostgreSQL, MySQL for distributed optimization
+- **Visualization**: Interactive Plotly plots (optimization history, parameter importances, etc.)
+- **Hybrid approach**: Trial training logs in TensorBoard, study-level plots in HTML
+
+**Configuration example:**
+```yaml
+search:
+  study_name: 'my_optimization'
+  storage: 'sqlite:///optuna_studies.db'
+  n_trials: 50
+  direction: 'maximize'  # or 'minimize'
+  metric: 'val_acc'      # or 'val_loss'
+  
+  sampler:
+    type: 'TPESampler'
+    n_startup_trials: 10
+  
+  pruner:
+    type: 'MedianPruner'
+    n_startup_trials: 5
+    n_warmup_steps: 5
+  
+  search_space:
+    optimizer.lr:
+      type: 'loguniform'
+      low: 1e-5
+      high: 1e-1
+    
+    training.batch_size:
+      type: 'categorical'
+      choices: [16, 32, 64]
+    
+    optimizer.momentum:
+      type: 'uniform'
+      low: 0.8
+      high: 0.99
+```
+
+See config_template.yaml for full search configuration options.
+
 ## Documentation Structure
 
 Comprehensive docs in `docs/`:
@@ -352,8 +452,11 @@ Documentation built with MkDocs Material theme, deployed to GitHub Pages.
 
 - Build system: setuptools
 - Dependencies defined in `pyproject.toml`
-- Console scripts: `ml-train`, `ml-inference`, `ml-split`, `ml-visualise`, `ml-init-config`
-- Optional dev dependencies: `pip install -e ".[dev]"` (pytest, ruff, mkdocs)
+- Console scripts: `ml-train`, `ml-inference`, `ml-split`, `ml-visualise`, `ml-init-config`, `ml-search`
+- Optional dependencies:
+  - Dev: `uv pip install -e ".[dev]"` (pytest, ruff, mkdocs)
+  - Differential Privacy: `uv pip install -e ".[dp]"` (opacus)
+  - Hyperparameter Search: `uv pip install -e ".[optuna]"` (optuna, plotly, kaleido)
 
 ## Git Workflow
 

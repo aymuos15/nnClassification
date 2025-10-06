@@ -156,6 +156,9 @@ class BaseTrainer(ABC):
                 f"metric={self.early_stopping.metric}, mode={self.early_stopping.mode}"
             )
 
+        # Optuna trial for pruning (set externally if used in hyperparameter search)
+        self.optuna_trial = None
+
     @abstractmethod
     def prepare_training(self):
         """
@@ -402,6 +405,21 @@ class BaseTrainer(ABC):
                     }
                     self.save_checkpoint(epoch, best_acc, metrics, self.best_model_path)
                     logger.success(f"New best model saved! Acc: {best_acc:.4f}")
+
+                # Report to Optuna trial for pruning (if running hyperparameter search)
+                if phase == "val" and self.optuna_trial is not None:
+                    try:
+                        import optuna
+
+                        # Report intermediate value to Optuna
+                        self.optuna_trial.report(epoch_acc.item(), epoch)
+
+                        # Check if trial should be pruned
+                        if self.optuna_trial.should_prune():
+                            logger.warning(f"Trial pruned at epoch {epoch}")
+                            raise optuna.TrialPruned()
+                    except ImportError:
+                        pass  # Optuna not installed, skip pruning
 
                 # Check early stopping
                 if phase == "val" and self.early_stopping is not None:

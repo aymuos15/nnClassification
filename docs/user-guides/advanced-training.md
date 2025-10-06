@@ -11,9 +11,9 @@ Use this decision tree to select the appropriate trainer for your use case:
 ```mermaid
 graph TD
     A[Start] --> B{Need privacy<br/>guarantees?}
-    B -->|Yes| C[DPTrainer<br/>pip install opacus]
+    B -->|Yes| C[DPTrainer<br/>uv pip install opacus]
     B -->|No| D{Have multiple<br/>GPUs?}
-    D -->|Yes| E[AccelerateTrainer<br/>pip install accelerate]
+    D -->|Yes| E[AccelerateTrainer<br/>uv pip install accelerate]
     D -->|No| F{Have CUDA GPU?}
     F -->|Yes| G[MixedPrecisionTrainer<br/>2-3x faster]
     F -->|No| H[StandardTrainer<br/>CPU/simple workflows]
@@ -104,7 +104,7 @@ Choose based on your GPU architecture:
 
 ```bash
 # Install framework
-pip install -e .
+uv pip install -e .
 
 # Train with mixed precision
 ml-train --config configs/my_dataset_config.yaml
@@ -220,7 +220,7 @@ Hugging Face Accelerate provides seamless multi-GPU and distributed training wit
 ### Requirements
 
 ```bash
-pip install accelerate
+uv pip install accelerate
 ```
 
 ### One-Time Setup
@@ -506,7 +506,7 @@ Controls the amount of noise added to gradients
 ### Requirements
 
 ```bash
-pip install opacus
+uv pip install opacus
 ```
 
 **Note:** Opacus requires:
@@ -971,7 +971,7 @@ Uses HuggingFace Accelerate for distributed inference across multiple GPUs. Idea
 **Requirements:**
 
 ```bash
-pip install accelerate
+uv pip install accelerate
 ```
 
 **Configuration:**

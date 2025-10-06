@@ -58,6 +58,7 @@ theme:
 # Navigation Structure
 nav:
   - Home: README.md
+  - Workflow Guide: workflow.md
 
   - Getting Started:
     - Overview: getting-started/README.md

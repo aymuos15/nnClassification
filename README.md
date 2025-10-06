@@ -10,10 +10,10 @@ Production-ready image classification framework with flexible architecture suppo
 ### Install
 ```bash
 # Install in development mode (editable)
-pip install -e .
+uv pip install -e .
 
 # Or with development dependencies
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 ```
 
 After installation, you can use the CLI commands from anywhere:

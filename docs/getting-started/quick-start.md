@@ -7,7 +7,7 @@ Get up and running with your first training run in 5 minutes!
 ## Prerequisites
 
 - ✅ Python 3.8+ installed
-- ✅ Package installed (`pip install -e .`)
+- ✅ Package installed (`uv pip install -e .`)
 - ✅ CLI commands available globally
 - ✅ Dataset organized ([see Data Preparation](data-preparation.md))
 

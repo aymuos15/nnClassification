@@ -35,6 +35,9 @@ Examples:
 
   # Custom settings
   ml-init-config --data_dir data/my_dataset --architecture efficientnet_b0 --batch_size 32
+
+  # With hyperparameter search support
+  ml-init-config --data_dir data/my_dataset --optuna
         """,
     )
 
@@ -65,6 +68,12 @@ Examples:
         "--num_epochs", type=int, default=25, help="Number of training epochs (default: 25)"
     )
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate (default: 0.001)")
+    parser.add_argument(
+        "--optuna",
+        action="store_true",
+        default=False,
+        help="Include hyperparameter search configuration (requires: pip install -e '.[optuna]')",
+    )
 
     args = parser.parse_args()
 
@@ -105,6 +114,33 @@ Examples:
 
     config = create_config(dataset_info, template_path, **settings)
 
+    # Add search configuration if --optuna flag is set
+    if args.optuna:
+        logger.info("Adding hyperparameter search configuration...")
+        config["search"] = {
+            "study_name": f"{dataset_info['dataset_name']}_optimization",
+            "storage": "sqlite:///optuna_studies.db",
+            "n_trials": 50,
+            "timeout": None,
+            "direction": "maximize",
+            "metric": "val_acc",
+            "sampler": {"type": "TPESampler", "n_startup_trials": 10},
+            "pruner": {
+                "type": "MedianPruner",
+                "n_startup_trials": 5,
+                "n_warmup_steps": 5,
+            },
+            "cross_validation": {"enabled": False, "n_folds": 5, "aggregation": "mean"},
+            "search_space": {
+                "optimizer.lr": {"type": "loguniform", "low": 1e-5, "high": 1e-1},
+                "training.batch_size": {"type": "categorical", "choices": [16, 32, 64]},
+                "optimizer.momentum": {"type": "uniform", "low": 0.8, "high": 0.99},
+                "scheduler.step_size": {"type": "int", "low": 5, "high": 15},
+                "scheduler.gamma": {"type": "uniform", "low": 0.05, "high": 0.5},
+            },
+        }
+        logger.success("Search configuration added. Install with: pip install -e '.[optuna]'")
+
     # Determine output path
     if args.output:
         output_path = args.output
@@ -139,8 +175,14 @@ Examples:
 
     # Print next steps
     print("\nNext steps:")
-    print(f"  1. (Optional) Edit config: {output_path}")
-    print(f"  2. Train model: ml-train --config {output_path}")
+    if args.optuna:
+        print("  1. Install search dependencies: pip install -e '.[optuna]'")
+        print(f"  2. (Optional) Edit search space: {output_path}")
+        print(f"  3. Run hyperparameter search: ml-search --config {output_path}")
+        print(f"  4. Visualize results: ml-visualise --mode search --study-name {dataset_info['dataset_name']}_optimization")
+    else:
+        print(f"  1. (Optional) Edit config: {output_path}")
+        print(f"  2. Train model: ml-train --config {output_path}")
     print()
 
 

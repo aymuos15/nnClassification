@@ -1,5 +1,6 @@
 """Visualization module."""
 
+from ml_src.core.visual.search import visualize_search_study
 from ml_src.core.visual.server import clean_tensorboard_logs, launch_tensorboard
 from ml_src.core.visual.tensorboard import visualize_predictions, visualize_samples
 from ml_src.core.visual.transforms import add_colored_border, denormalize
@@ -14,4 +15,6 @@ __all__ = [
     # server
     "launch_tensorboard",
     "clean_tensorboard_logs",
+    # search
+    "visualize_search_study",
 ]

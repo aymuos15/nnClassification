@@ -116,7 +116,7 @@ source venv/bin/activate  # Linux/macOS
 # OR: venv\Scripts\activate  # Windows
 
 # Install package
-pip install -e .
+uv pip install -e .
 ```
 
 **Verify installation:**
@@ -309,7 +309,7 @@ python3 -m venv venv
 source venv/bin/activate
 
 # Install package
-pip install -e .
+uv pip install -e .
 
 # Verify installation
 python -c "import torch; print('Ready!')"
@@ -458,7 +458,7 @@ If False but you have GPU, see [installation.md](installation.md) for GPU setup.
 
 ```bash
 # === INSTALLATION ===
-pip install -e .                              # Install framework
+uv pip install -e .                              # Install framework
 python -c "import torch; print('Ready!')"     # Verify installation
 
 # === DATA PREPARATION ===

@@ -15,6 +15,7 @@ from ml_src.core.visual import (
     launch_tensorboard,
     visualize_predictions,
     visualize_samples,
+    visualize_search_study,
 )
 
 
@@ -39,6 +40,13 @@ Examples:
 
   # Clean TensorBoard logs from specific run
   ml-visualise --mode clean --run_dir runs/base
+
+  # Visualize hyperparameter search results
+  ml-visualise --mode search --study-name my_study
+
+  # Generate specific plot types for search
+  ml-visualise --mode search --study-name my_study --plot-type optimization_history
+  ml-visualise --mode search --study-name my_study --plot-type contour --params lr batch_size
         """,
     )
 
@@ -46,7 +54,7 @@ Examples:
         "--mode",
         type=str,
         required=True,
-        choices=["launch", "samples", "predictions", "clean"],
+        choices=["launch", "samples", "predictions", "clean", "search"],
         help="Visualization mode",
     )
     parser.add_argument(
@@ -80,6 +88,42 @@ Examples:
         default=6006,
         help="Port for TensorBoard server (default: 6006)",
     )
+    parser.add_argument(
+        "--study-name",
+        type=str,
+        help="Optuna study name (for --mode search)",
+    )
+    parser.add_argument(
+        "--storage",
+        type=str,
+        default="sqlite:///optuna_studies.db",
+        help="Optuna storage URL (for --mode search, default: sqlite:///optuna_studies.db)",
+    )
+    parser.add_argument(
+        "--plot-type",
+        type=str,
+        choices=[
+            "all",
+            "optimization_history",
+            "param_importances",
+            "slice",
+            "contour",
+            "parallel_coordinate",
+            "intermediate_values",
+        ],
+        default="all",
+        help="Plot type for search visualization (default: all)",
+    )
+    parser.add_argument(
+        "--params",
+        nargs="+",
+        help="Parameters to visualize (for contour/slice plots)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        help="Directory to save plots (default: study directory)",
+    )
 
     args = parser.parse_args()
 
@@ -100,6 +144,22 @@ Examples:
     # Handle launch mode (doesn't require config)
     if args.mode == "launch":
         launch_tensorboard(args.run_dir, args.port)
+        return
+
+    # Handle search mode
+    if args.mode == "search":
+        if not args.study_name:
+            logger.error("--study-name is required for search mode")
+            logger.info("Example: ml-visualise --mode search --study-name my_study")
+            return
+
+        visualize_search_study(
+            study_name=args.study_name,
+            storage=args.storage,
+            plot_type=args.plot_type,
+            params=args.params,
+            output_dir=args.output_dir,
+        )
         return
 
     # For samples and predictions modes, load config

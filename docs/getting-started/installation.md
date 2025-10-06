@@ -58,7 +58,7 @@ conda activate pytorch-classifier
 ### 3. Install Dependencies
 
 ```bash
-pip install -e .
+uv pip install -e .
 ```
 
 This installs the package in editable mode along with all required dependencies including:
@@ -164,16 +164,18 @@ PyTorch bundles cuDNN. If you need a specific version:
 
 ## Troubleshooting Installation
 
-### Issue: "pip: command not found"
+### Issue: "uv: command not found"
 
 **Solution:**
 ```bash
-# Try pip3
-pip3 install -e .
+# Install uv first
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Or use python -m pip
-python -m pip install -e .
-python3 -m pip install -e .
+# Or use pip as fallback
+pip install uv
+
+# Then install the package
+uv pip install -e .
 ```
 
 ### Issue: "torch not found" or Import Error
@@ -181,11 +183,11 @@ python3 -m pip install -e .
 **Solution:**
 ```bash
 # Reinstall PyTorch
-pip uninstall torch torchvision
-pip install torch torchvision
+uv pip uninstall torch torchvision
+uv pip install torch torchvision
 
 # Or install specific version (example for CUDA 11.8)
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 ```
 
 ### Issue: CUDA Version Mismatch
@@ -199,13 +201,13 @@ nvidia-smi  # Look for "CUDA Version" in top right
 
 # Install matching PyTorch
 # For CUDA 11.8:
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
 # For CUDA 12.1:
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 # For CPU only:
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ```
 
 See [PyTorch Get Started](https://pytorch.org/get-started/locally/) for all options.
@@ -215,10 +217,10 @@ See [PyTorch Get Started](https://pytorch.org/get-started/locally/) for all opti
 **Solution:**
 ```bash
 # Use --user flag
-pip install -e . --user
+uv pip install -e . --user
 
 # Or use sudo (not recommended)
-sudo pip install -e .
+sudo uv pip install -e .
 ```
 
 ### Issue: Out of Disk Space
@@ -228,22 +230,21 @@ sudo pip install -e .
 # Check disk space
 df -h
 
-# Clear pip cache
-pip cache purge
+# Clear uv cache
+uv cache clean
 
 # Install to different location
-pip install -e . --target /path/to/large/disk
+uv pip install -e . --target /path/to/large/disk
 ```
 
 ### Issue: Slow Installation
 
 **Solution:**
 ```bash
-# Use faster mirror (example: Aliyun for China)
-pip install -e . -i https://mirrors.aliyun.com/pypi/simple/
+# uv is already much faster than pip
 
 # Or skip dependencies if already installed
-pip install -e . --no-deps
+uv pip install -e . --no-deps
 ```
 
 ---
@@ -255,12 +256,15 @@ pip install -e . --no-deps
 ```bash
 # Install system dependencies
 sudo apt-get update
-sudo apt-get install python3 python3-pip python3-venv
+sudo apt-get install python3 python3-venv
+
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install project
 python3 -m venv venv
 source venv/bin/activate
-pip install -e .
+uv pip install -e .
 ```
 
 ### macOS
@@ -269,10 +273,13 @@ pip install -e .
 # Install Python via Homebrew
 brew install python
 
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Install project
 python3 -m venv venv
 source venv/bin/activate
-pip install -e .
+uv pip install -e .
 ```
 
 **Note:** macOS doesn't have CUDA support. Use CPU or Google Colab for GPU.
@@ -282,12 +289,15 @@ pip install -e .
 ```powershell
 # Install Python from python.org
 
+# Install uv
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
 # Create virtual environment
 python -m venv venv
 venv\Scripts\activate
 
 # Install dependencies
-pip install -e .
+uv pip install -e .
 ```
 
 **Note:** Windows paths use backslashes (`\`). Adjust paths in configs accordingly.
@@ -307,8 +317,9 @@ WORKDIR /workspace
 COPY pyproject.toml .
 COPY . .
 
-# Install package
-RUN pip install -e .
+# Install uv and package
+RUN pip install uv
+RUN uv pip install -e .
 
 # Set entrypoint
 ENTRYPOINT ["ml-train"]
@@ -342,7 +353,8 @@ docker run --gpus all -it pytorch-classifier /bin/bash
    ```
 4. Install dependencies:
    ```bash
-   !pip install -e .
+   !pip install uv
+   !uv pip install -e .
    ```
 5. Run training:
    ```bash
@@ -362,8 +374,9 @@ cd gui
 # Activate PyTorch environment (already installed on DL AMI)
 source activate pytorch
 
-# Install additional dependencies
-pip install -e .
+# Install uv and additional dependencies
+pip install uv
+uv pip install -e .
 
 # Run training
 ml-train
@@ -381,7 +394,8 @@ gcloud compute ssh instance-name
 # Clone and install
 git clone <repo-url>
 cd gui
-pip install -e .
+pip install uv
+uv pip install -e .
 
 # Run training
 ml-train
@@ -394,19 +408,19 @@ ml-train
 ### Update All Packages
 
 ```bash
-pip install --upgrade -e .
+uv pip install --upgrade -e .
 ```
 
 ### Update Specific Package
 
 ```bash
-pip install --upgrade torch torchvision
+uv pip install --upgrade torch torchvision
 ```
 
 ### Check for Outdated Packages
 
 ```bash
-pip list --outdated
+uv pip list --outdated
 ```
 
 ---
@@ -462,8 +476,9 @@ Save this output when reporting issues.
 
 ✅ **Installation checklist:**
 - [ ] Python 3.8+ installed
+- [ ] uv installed (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - [ ] Virtual environment created and activated
-- [ ] Package installed (`pip install -e .`)
+- [ ] Package installed (`uv pip install -e .`)
 - [ ] CLI commands available globally
 - [ ] PyTorch imported successfully
 - [ ] CUDA available (optional, for GPU)

@@ -50,6 +50,11 @@ dev = [
 dp = [
     "opacus>=1.4.0",
 ]
+optuna = [
+    "optuna>=3.0.0",
+    "plotly>=5.0.0",
+    "kaleido>=0.2.0",
+]
 
 [project.scripts]
 ml-train = "ml_src.cli.train:main"
@@ -57,6 +62,7 @@ ml-inference = "ml_src.cli.inference:main"
 ml-split = "ml_src.cli.splitting:main"
 ml-visualise = "ml_src.cli.visualise:main"
 ml-init-config = "ml_src.cli.init_config:main"
+ml-search = "ml_src.cli.search:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

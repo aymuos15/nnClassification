@@ -7,7 +7,7 @@ Common issues and solutions.
 ### "torch not found"
 ```bash
 # Install the package with dependencies
-pip install -e .
+uv pip install -e .
 ```
 
 ### CUDA Not Available
