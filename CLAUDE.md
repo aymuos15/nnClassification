@@ -73,8 +73,18 @@ ml-train --config configs/my_dataset_config.yaml
 # Run hyperparameter search (requires: uv pip install -e ".[optuna]")
 ml-search --config configs/my_dataset_config.yaml --n-trials 50
 
-# Run inference
+# Run inference (standard)
 ml-inference --checkpoint_path runs/my_run/weights/best.pt
+
+# Run inference with Test-Time Augmentation (TTA)
+ml-inference --checkpoint_path runs/my_run/weights/best.pt --tta
+ml-inference --checkpoint_path runs/my_run/weights/best.pt --tta --tta-augmentations horizontal_flip vertical_flip
+
+# Run ensemble inference from multiple folds
+ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt runs/fold_2/weights/best.pt
+
+# Combined TTA + Ensemble for maximum performance
+ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt --tta
 
 # Export model to ONNX for deployment
 ml-export --checkpoint runs/my_run/weights/best.pt
@@ -117,6 +127,18 @@ ml_src/
     │   ├── mixed_precision.py  # MixedPrecisionTrainer: PyTorch AMP
     │   ├── accelerate.py   # AccelerateTrainer: Multi-GPU with Accelerate
     │   └── differential_privacy.py  # DPTrainer: Opacus differential privacy
+    ├── inference/          # Inference strategies for test-time optimization
+    │   ├── __init__.py     # get_inference_strategy() factory function
+    │   ├── base.py         # BaseInferenceStrategy abstract class
+    │   ├── standard.py     # StandardInference: Basic PyTorch inference
+    │   ├── mixed_precision.py  # MixedPrecisionInference: AMP inference
+    │   ├── accelerate.py   # AccelerateInference: Multi-GPU inference
+    │   ├── tta.py          # TTAInference: Test-Time Augmentation
+    │   ├── ensemble.py     # EnsembleInference: Multi-model ensembling
+    │   └── tta_ensemble.py # TTAEnsembleInference: Combined TTA + Ensemble
+    ├── transforms/         # Transform utilities
+    │   ├── __init__.py     # Transform API
+    │   └── tta.py          # TTA augmentation utilities
     ├── loss.py             # Loss functions
     ├── optimizer.py        # Optimizers and schedulers
     ├── lr_finder.py        # Learning rate finder implementation
@@ -207,6 +229,76 @@ training:
 - `mixed_precision`: Single modern GPU (most common for production)
 - `accelerate`: Multiple GPUs, distributed training
 - `dp`: Privacy-sensitive data requiring formal guarantees
+
+### Inference Strategies
+
+All inference strategies inherit from `BaseInferenceStrategy` and are selected via `config['inference']['strategy']`.
+
+**Available strategies:**
+- `standard` (default) - Traditional PyTorch inference
+- `mixed_precision` - AMP inference for 2-3x speedup
+- `accelerate` - Multi-GPU/distributed inference
+- `tta` - Test-Time Augmentation for improved robustness (1-3% accuracy gain, slower)
+- `ensemble` - Combine multiple model checkpoints (e.g., from CV folds)
+- `tta_ensemble` - Combined TTA + Ensemble for maximum performance (slowest, best accuracy)
+
+**Factory function:** `get_inference_strategy(config, device=None)`
+
+**Example configs:**
+
+```yaml
+# TTA inference
+inference:
+  strategy: 'tta'
+  tta:
+    augmentations: ['horizontal_flip', 'vertical_flip']
+    aggregation: 'mean'  # or 'max', 'voting'
+
+# Ensemble inference
+inference:
+  strategy: 'ensemble'
+  ensemble:
+    checkpoints:
+      - 'runs/fold_0/weights/best.pt'
+      - 'runs/fold_1/weights/best.pt'
+      - 'runs/fold_2/weights/best.pt'
+    aggregation: 'soft_voting'  # or 'hard_voting', 'weighted'
+    weights: [0.4, 0.3, 0.3]  # Optional, for weighted aggregation
+
+# Combined TTA + Ensemble
+inference:
+  strategy: 'tta_ensemble'
+  tta:
+    augmentations: ['horizontal_flip']
+    aggregation: 'mean'
+  ensemble:
+    checkpoints: ['runs/fold_0/weights/best.pt', 'runs/fold_1/weights/best.pt']
+    aggregation: 'soft_voting'
+```
+
+**CLI usage (easier than config):**
+```bash
+# TTA inference
+ml-inference --checkpoint_path runs/fold_0/weights/best.pt --tta
+
+# Ensemble inference
+ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt
+
+# Combined TTA + Ensemble
+ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt --tta
+```
+
+**When to use each:**
+- `standard`: Fast inference, baseline performance
+- `tta`: Single model, want robustness improvement (~1-3% accuracy gain)
+- `ensemble`: Have multiple trained folds, want best accuracy (~2-5% gain)
+- `tta_ensemble`: Maximum accuracy needed, inference time not critical (~3-8% total gain)
+
+**Performance comparison:**
+- `standard`: 1x speed (baseline)
+- `tta` (5 augmentations): ~5x slower
+- `ensemble` (5 models): ~5x slower
+- `tta_ensemble` (5 models × 5 augmentations): ~25x slower
 
 ### Adding New Models
 

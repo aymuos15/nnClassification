@@ -34,11 +34,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run inference with best checkpoint
+  # Standard inference with best checkpoint
   ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt
 
-  # Run inference with last checkpoint
-  ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/last.pt
+  # TTA inference with horizontal flip
+  ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt --tta
+
+  # TTA with custom augmentations
+  ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt --tta --tta-augmentations horizontal_flip vertical_flip
+
+  # Ensemble inference from multiple folds
+  ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt runs/fold_2/weights/best.pt
+
+  # Combined TTA + Ensemble for maximum performance
+  ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt --tta
 
   # Override data directory
   ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt --data_dir data/new_dataset
@@ -47,22 +56,81 @@ Examples:
     parser.add_argument(
         "--checkpoint_path",
         type=str,
-        required=True,
-        help="Path to checkpoint file (e.g., runs/base/weights/best.pt)",
+        help="Path to checkpoint file (e.g., runs/base/weights/best.pt). Not required for ensemble.",
     )
     parser.add_argument("--data_dir", type=str, help="Override data directory")
 
+    # TTA arguments
+    parser.add_argument(
+        "--tta",
+        action="store_true",
+        help="Enable Test-Time Augmentation for improved robustness (slower, higher accuracy)",
+    )
+    parser.add_argument(
+        "--tta-augmentations",
+        nargs="+",
+        default=["horizontal_flip"],
+        help="TTA augmentations to apply (default: horizontal_flip). "
+        "Options: horizontal_flip, vertical_flip, rotate_90, rotate_180, rotate_270",
+    )
+    parser.add_argument(
+        "--tta-aggregation",
+        choices=["mean", "max", "voting"],
+        default="mean",
+        help="How to aggregate TTA predictions (default: mean)",
+    )
+
+    # Ensemble arguments
+    parser.add_argument(
+        "--ensemble",
+        nargs="+",
+        metavar="CHECKPOINT",
+        help="Ensemble multiple checkpoints (e.g., --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt)",
+    )
+    parser.add_argument(
+        "--ensemble-aggregation",
+        choices=["soft_voting", "hard_voting", "weighted"],
+        default="soft_voting",
+        help="How to aggregate ensemble predictions (default: soft_voting)",
+    )
+    parser.add_argument(
+        "--ensemble-weights",
+        nargs="+",
+        type=float,
+        help="Weights for weighted ensemble (must match number of checkpoints)",
+    )
+
     args = parser.parse_args()
 
-    # Validate checkpoint exists
-    if not os.path.exists(args.checkpoint_path):
-        logger.error(f"Checkpoint not found: {args.checkpoint_path}")
+    # Determine checkpoint source
+    if args.ensemble:
+        # Ensemble mode
+        checkpoints = args.ensemble
+        is_ensemble = True
+    elif args.checkpoint_path:
+        # Single checkpoint mode
+        checkpoints = [args.checkpoint_path]
+        is_ensemble = False
+    else:
+        parser.error("Either --checkpoint_path or --ensemble is required")
         return
 
-    # Auto-extract run_dir from checkpoint path
-    run_dir = get_run_dir_from_checkpoint(args.checkpoint_path)
+    # Validate checkpoints exist
+    for checkpoint in checkpoints:
+        if not os.path.exists(checkpoint):
+            logger.error(f"Checkpoint not found: {checkpoint}")
+            return
 
-    logger.info(f"Checkpoint: {args.checkpoint_path}")
+    # Auto-extract run_dir from first checkpoint path
+    run_dir = get_run_dir_from_checkpoint(checkpoints[0])
+
+    if is_ensemble:
+        logger.info(f"Ensemble mode with {len(checkpoints)} checkpoints")
+        for i, ckpt in enumerate(checkpoints):
+            logger.info(f"  Checkpoint {i + 1}: {ckpt}")
+    else:
+        logger.info(f"Checkpoint: {checkpoints[0]}")
+
     logger.info(f"Run directory: {run_dir}")
 
     # Load config from run directory
@@ -85,6 +153,45 @@ Examples:
     # Override data directory if provided
     if args.data_dir:
         config["data"]["data_dir"] = args.data_dir
+
+    # Override config with CLI arguments for TTA/Ensemble
+    if args.tta and is_ensemble:
+        # TTA + Ensemble mode
+        config["inference"] = {
+            "strategy": "tta_ensemble",
+            "tta": {
+                "augmentations": args.tta_augmentations,
+                "aggregation": args.tta_aggregation,
+            },
+            "ensemble": {
+                "checkpoints": checkpoints,
+                "aggregation": args.ensemble_aggregation,
+                "weights": args.ensemble_weights,
+            },
+        }
+        logger.info("Using TTA + Ensemble inference strategy")
+    elif args.tta:
+        # TTA only mode
+        config["inference"] = {
+            "strategy": "tta",
+            "tta": {
+                "augmentations": args.tta_augmentations,
+                "aggregation": args.tta_aggregation,
+            },
+        }
+        logger.info("Using TTA inference strategy")
+    elif is_ensemble:
+        # Ensemble only mode
+        config["inference"] = {
+            "strategy": "ensemble",
+            "ensemble": {
+                "checkpoints": checkpoints,
+                "aggregation": args.ensemble_aggregation,
+                "weights": args.ensemble_weights,
+            },
+        }
+        logger.info("Using Ensemble inference strategy")
+    # Otherwise, use strategy from config file (default: standard)
 
     # Setup CUDA
     cudnn.benchmark = True
@@ -111,21 +218,27 @@ Examples:
     dataset_sizes = get_dataset_sizes(datasets)
     logger.info(f"Test dataset size: {dataset_sizes['test']}")
 
-    # Create model
-    logger.info("Creating model...")
-    model = get_model(config, device)
+    # Create and load model (skip for ensemble - models loaded in strategy)
+    if is_ensemble:
+        # For ensemble, model loading is handled by the strategy
+        model = None
+        logger.info("Ensemble mode: models will be loaded by inference strategy")
+    else:
+        # Standard single-model inference
+        logger.info("Creating model...")
+        model = get_model(config, device)
 
-    # Load checkpoint (already validated at the beginning)
-    logger.info(f"Loading checkpoint from {args.checkpoint_path}")
-    model = load_model(model, args.checkpoint_path, device)
+        # Load checkpoint
+        logger.info(f"Loading checkpoint from {checkpoints[0]}")
+        model = load_model(model, checkpoints[0], device)
 
     # Run inference
     logger.info("=" * 50)
     logger.info("Running Inference")
     logger.info("=" * 50)
 
-    # Get inference strategy from config
-    strategy = get_inference_strategy(config)
+    # Get inference strategy from config (pass device for ensemble strategies)
+    strategy = get_inference_strategy(config, device=device)
 
     test_acc, per_sample_results = strategy.run_inference(
         model=model,
@@ -176,12 +289,13 @@ Examples:
     logger.info("TensorBoard writer closed")
 
     # Display results using rich tables
+    checkpoint_display = checkpoints[0] if not is_ensemble else f"Ensemble ({len(checkpoints)} models)"
     display_inference_results(
         per_sample_results,
         test_acc,
         dataset_sizes["test"],
         run_dir,
-        args.checkpoint_path,
+        checkpoint_display,
         class_names,
     )
 
