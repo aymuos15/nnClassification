@@ -8,6 +8,7 @@ import torch
 from loguru import logger
 from torch.utils.tensorboard import SummaryWriter
 
+from ml_src.core.callbacks import CallbackManager
 from ml_src.core.checkpointing import count_parameters, save_summary
 from ml_src.core.early_stopping import EarlyStopping
 from ml_src.core.metrics import (
@@ -98,6 +99,7 @@ class BaseTrainer(ABC):
         config,
         run_dir,
         class_names,
+        callbacks=None,
     ):
         """
         Initialize the base trainer.
@@ -113,6 +115,7 @@ class BaseTrainer(ABC):
             config: Configuration dictionary
             run_dir: Directory to save model checkpoints
             class_names: List of class names
+            callbacks: List of Callback instances (optional)
         """
         self.model = model
         self.criterion = criterion
@@ -124,6 +127,10 @@ class BaseTrainer(ABC):
         self.config = config
         self.run_dir = run_dir
         self.class_names = class_names
+
+        # Initialize callback manager
+        self.callback_manager = CallbackManager(callbacks or [])
+        self.should_stop = False  # Flag for callback-based early stopping
 
         # Extract num_epochs from config
         self.num_epochs = config["training"]["num_epochs"]
@@ -318,6 +325,9 @@ class BaseTrainer(ABC):
         # Prepare for training (subclass-specific setup)
         self.prepare_training()
 
+        # Invoke on_train_begin callback
+        self.callback_manager.on_train_begin(self)
+
         # Save initial checkpoint if starting fresh
         if start_epoch == 0:
             metrics = {
@@ -348,6 +358,9 @@ class BaseTrainer(ABC):
             logger.opt(colors=True).info(f"<yellow>Epoch {epoch}/{self.num_epochs - 1}</yellow>")
             logger.opt(colors=True).info("<dim>" + "-" * 50 + "</dim>")
 
+            # Invoke on_epoch_begin callback
+            self.callback_manager.on_epoch_begin(self, epoch)
+
             # Each epoch has a training and validation phase
             for phase in ["train", "val"]:
                 if phase == "train":
@@ -355,11 +368,19 @@ class BaseTrainer(ABC):
                 else:
                     self.model.eval()  # Set model to evaluate mode
 
+                # Invoke on_phase_begin callback
+                self.callback_manager.on_phase_begin(self, phase)
+
                 running_loss = 0.0
                 running_corrects = 0
 
                 # Iterate over data
-                for inputs, labels in self.dataloaders[phase]:
+                for batch_idx, (inputs, labels) in enumerate(self.dataloaders[phase]):
+                    batch = (inputs, labels)
+
+                    # Invoke on_batch_begin callback
+                    self.callback_manager.on_batch_begin(self, batch_idx, batch)
+
                     inputs = inputs.to(self.device)
                     labels = labels.to(self.device)
 
@@ -378,6 +399,9 @@ class BaseTrainer(ABC):
 
                     # Get predictions
                     _, preds = torch.max(outputs, 1)
+
+                    # Invoke on_batch_end callback
+                    self.callback_manager.on_batch_end(self, batch_idx, batch, outputs, loss)
 
                     # Statistics
                     running_loss += loss.item() * inputs.size(0)
@@ -412,37 +436,41 @@ class BaseTrainer(ABC):
                     self.writer.add_scalar("Loss/val", epoch_loss, epoch)
                     self.writer.add_scalar("Accuracy/val", epoch_acc.item(), epoch)
 
-                    # Evaluate EMA model if enabled
-                    if self.ema is not None:
-                        ema_running_loss = 0.0
-                        ema_running_corrects = 0
-                        ema_model = self.ema.model
-                        ema_model.eval()
+                # Invoke on_phase_end callback
+                phase_logs = {"loss": epoch_loss, "acc": epoch_acc.item()}
+                self.callback_manager.on_phase_end(self, phase, phase_logs)
 
-                        with torch.no_grad():
-                            for ema_inputs, ema_labels in self.dataloaders["val"]:
-                                ema_inputs = ema_inputs.to(self.device)
-                                ema_labels = ema_labels.to(self.device)
+                # Evaluate EMA model if enabled
+                if phase == "val" and self.ema is not None:
+                    ema_running_loss = 0.0
+                    ema_running_corrects = 0
+                    ema_model = self.ema.model
+                    ema_model.eval()
 
-                                # Forward pass with EMA model
-                                ema_outputs = ema_model(ema_inputs)
-                                ema_loss = self.criterion(ema_outputs, ema_labels)
-                                _, ema_preds = torch.max(ema_outputs, 1)
+                    with torch.no_grad():
+                        for ema_inputs, ema_labels in self.dataloaders["val"]:
+                            ema_inputs = ema_inputs.to(self.device)
+                            ema_labels = ema_labels.to(self.device)
 
-                                ema_running_loss += ema_loss.item() * ema_inputs.size(0)
-                                ema_running_corrects += torch.sum(ema_preds == ema_labels.data)
+                            # Forward pass with EMA model
+                            ema_outputs = ema_model(ema_inputs)
+                            ema_loss = self.criterion(ema_outputs, ema_labels)
+                            _, ema_preds = torch.max(ema_outputs, 1)
 
-                        ema_epoch_loss = ema_running_loss / self.dataset_sizes["val"]
-                        ema_epoch_acc = ema_running_corrects.double() / self.dataset_sizes["val"]
+                            ema_running_loss += ema_loss.item() * ema_inputs.size(0)
+                            ema_running_corrects += torch.sum(ema_preds == ema_labels.data)
 
-                        # Log EMA metrics to TensorBoard
-                        self.writer.add_scalar("Loss/val_ema", ema_epoch_loss, epoch)
-                        self.writer.add_scalar("Accuracy/val_ema", ema_epoch_acc.item(), epoch)
+                    ema_epoch_loss = ema_running_loss / self.dataset_sizes["val"]
+                    ema_epoch_acc = ema_running_corrects.double() / self.dataset_sizes["val"]
 
-                        logger.opt(colors=True).info(
-                            f"<green>val_ema</> Loss: <yellow>{ema_epoch_loss:.4f}</> "
-                            f"Acc: <yellow>{ema_epoch_acc:.4f}</>"
-                        )
+                    # Log EMA metrics to TensorBoard
+                    self.writer.add_scalar("Loss/val_ema", ema_epoch_loss, epoch)
+                    self.writer.add_scalar("Accuracy/val_ema", ema_epoch_acc.item(), epoch)
+
+                    logger.opt(colors=True).info(
+                        f"<green>val_ema</> Loss: <yellow>{ema_epoch_loss:.4f}</> "
+                        f"Acc: <yellow>{ema_epoch_acc:.4f}</>"
+                    )
 
                 # Save best model
                 if phase == "val" and epoch_acc > best_acc:
@@ -472,7 +500,7 @@ class BaseTrainer(ABC):
                     except ImportError:
                         pass  # Optuna not installed, skip pruning
 
-                # Check early stopping
+                # Check early stopping (backward compatibility - will be deprecated)
                 if phase == "val" and self.early_stopping is not None:
                     metric_value = (
                         epoch_acc.item() if self.early_stopping.metric == "val_acc" else epoch_loss
@@ -489,6 +517,31 @@ class BaseTrainer(ABC):
                         # Set flag to break outer loop after summary update
                         early_stop_triggered = True
                         break
+
+            # Invoke on_epoch_end callback after both train and val phases
+            epoch_logs = {
+                "train_loss": train_losses[-1] if train_losses else 0.0,
+                "train_acc": train_accs[-1] if train_accs else 0.0,
+                "val_loss": val_losses[-1] if val_losses else 0.0,
+                "val_acc": val_accs[-1] if val_accs else 0.0,
+                "lr": self.optimizer.param_groups[0]["lr"],
+            }
+            self.callback_manager.on_epoch_end(self, epoch, epoch_logs)
+
+            # Check if callbacks requested early stopping
+            if self.should_stop:
+                logger.opt(colors=True).warning(
+                    f"<yellow>Callback-based early stopping triggered at epoch {epoch}</yellow>"
+                )
+                # Save last checkpoint before stopping
+                metrics = {
+                    "train_losses": train_losses,
+                    "val_losses": val_losses,
+                    "train_accs": train_accs,
+                    "val_accs": val_accs,
+                }
+                self.save_checkpoint(epoch, best_acc, metrics, self.last_model_path)
+                early_stop_triggered = True
 
             # Check if we need to break out of training loop
             if early_stop_triggered:
@@ -642,5 +695,8 @@ class BaseTrainer(ABC):
         # Close TensorBoard writer
         self.writer.close()
         logger.info("TensorBoard writer closed")
+
+        # Invoke on_train_end callback
+        self.callback_manager.on_train_end(self)
 
         return self.model, train_losses, val_losses, train_accs, val_accs

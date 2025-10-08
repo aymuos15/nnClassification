@@ -92,6 +92,7 @@ def get_trainer(
             config=config,
             run_dir=run_dir,
             class_names=class_names,
+            **kwargs,  # Pass through callbacks and other args
         )
     elif trainer_type == "mixed_precision":
         return MixedPrecisionTrainer(
@@ -105,6 +106,7 @@ def get_trainer(
             config=config,
             run_dir=run_dir,
             class_names=class_names,
+            **kwargs,  # Pass through callbacks and other args
         )
     elif trainer_type == "accelerate":
         if not _ACCELERATE_AVAILABLE:
@@ -123,6 +125,7 @@ def get_trainer(
             config=config,
             run_dir=run_dir,
             class_names=class_names,
+            **kwargs,  # Pass through callbacks and other args
         )
     elif trainer_type == "dp":
         if not _OPACUS_AVAILABLE:
@@ -141,6 +144,7 @@ def get_trainer(
             config=config,
             run_dir=run_dir,
             class_names=class_names,
+            **kwargs,  # Pass through callbacks and other args
         )
     else:
         raise ValueError(

@@ -13,6 +13,7 @@ class StandardTrainer(BaseTrainer):
     - Manual .to(device) for tensors
     - Standard forward/backward passes
     - No mixed precision or distributed training
+    - Full callback support
 
     This is the default trainer and maintains backward compatibility with
     existing training workflows.
@@ -28,7 +29,8 @@ class StandardTrainer(BaseTrainer):
         ...     device=device,
         ...     config=config,
         ...     run_dir=run_dir,
-        ...     class_names=class_names
+        ...     class_names=class_names,
+        ...     callbacks=callbacks  # Optional callbacks
         ... )
         >>> model, train_losses, val_losses, train_accs, val_accs = trainer.train()
     """

@@ -69,13 +69,75 @@ training:
                              # Useful to let model stabilize before tracking EMA
                              # Typical: 0 (no warmup) or 2000-5000 (with warmup)
 
-  # Early stopping configuration
+  # Early stopping configuration (DEPRECATED - use callbacks instead)
+  # Kept for backward compatibility. Prefer using callbacks for new projects.
   early_stopping:
     enabled: false         # Enable early stopping to prevent overfitting
     patience: 10           # Number of epochs to wait for improvement before stopping
     metric: 'val_acc'      # Metric to monitor: 'val_acc' or 'val_loss'
     mode: 'max'            # 'max' for accuracy (higher is better), 'min' for loss (lower is better)
     min_delta: 0.0         # Minimum change in metric to qualify as improvement
+
+  # ============================================================================
+  # CALLBACKS (Recommended for flexible training workflow)
+  # ============================================================================
+  # Callbacks provide extensible hooks into the training loop. Multiple callbacks
+  # can be combined for powerful training workflows.
+  #
+  # callbacks:
+  #   # Early Stopping: Stop training when metric stops improving
+  #   - type: 'early_stopping'
+  #     monitor: 'val_acc'       # Metric to monitor
+  #     patience: 10             # Epochs to wait for improvement
+  #     mode: 'max'              # 'max' for accuracy, 'min' for loss
+  #     min_delta: 0.001         # Minimum change to qualify as improvement
+  #
+  #   # Model Checkpointing: Save best models
+  #   - type: 'model_checkpoint'
+  #     monitor: 'val_acc'       # Metric for determining best models
+  #     mode: 'max'              # 'max' or 'min'
+  #     save_top_k: 3            # Keep top 3 models (1 = only best, -1 = save all)
+  #     save_last: true          # Always save last.pt
+  #     filename: 'epoch_{epoch:02d}_acc_{val_acc:.4f}.pt'  # Custom filename pattern
+  #
+  #   # Learning Rate Monitor: Log LR to TensorBoard
+  #   - type: 'lr_monitor'
+  #     log_momentum: true       # Also log momentum values
+  #     log_to_console: false    # Print LR to console
+  #
+  #   # Progress Bar: Visual progress with tqdm
+  #   - type: 'progress_bar'
+  #     show_metrics: true       # Display loss/acc in progress bar
+  #     position: 0              # Bar position (for multi-process)
+  #
+  #   # Stochastic Weight Averaging: Improve generalization (0.5-2% accuracy gain)
+  #   - type: 'swa'
+  #     swa_start_epoch: 75      # Start SWA at epoch 75 (None = 75% of training)
+  #     swa_lr: 0.0005           # SWA learning rate (None = current LR)
+  #     annealing_epochs: 10     # LR annealing duration
+  #     annealing_strategy: 'cos'  # 'cos' or 'linear'
+  #
+  #   # Gradient Clipping: Prevent exploding gradients
+  #   - type: 'gradient_clipping'
+  #     value: 1.0               # Clipping threshold
+  #     algorithm: 'norm'        # 'norm' or 'value'
+  #     norm_type: 2.0           # L2 norm (2.0) or max norm (inf)
+  #
+  #   # Gradient Norm Monitor: Track gradient statistics
+  #   - type: 'gradient_norm_monitor'
+  #     frequency: 10            # Log every N batches
+  #     norm_type: 2.0           # Type of norm to compute
+  #     log_per_layer: false     # Log gradients for each layer
+  #
+  #   # MixUp Augmentation: Improve accuracy by 1-3%
+  #   - type: 'mixup'
+  #     alpha: 0.2               # Beta distribution parameter
+  #     apply_prob: 0.5          # Apply to 50% of batches
+  #
+  #   # CutMix Augmentation: Alternative to MixUp
+  #   - type: 'cutmix'
+  #     alpha: 1.0               # Beta distribution parameter
+  #     apply_prob: 0.5          # Apply to 50% of batches
 
 # Inference settings
 inference:

@@ -127,11 +127,21 @@ ml_src/
     │   └── custom.py       # Custom architectures (SimpleCNN, TinyNet)
     ├── trainers/           # Specialized trainer implementations
     │   ├── __init__.py     # get_trainer() factory function
-    │   ├── base.py         # BaseTrainer abstract class (with EMA and Optuna support)
+    │   ├── base.py         # BaseTrainer abstract class (with callback support, EMA, Optuna)
     │   ├── standard.py     # StandardTrainer: Traditional PyTorch training
     │   ├── mixed_precision.py  # MixedPrecisionTrainer: PyTorch AMP
     │   ├── accelerate.py   # AccelerateTrainer: Multi-GPU with Accelerate
     │   └── differential_privacy.py  # DPTrainer: Opacus differential privacy
+    ├── callbacks/          # Extensible callback system for training hooks
+    │   ├── __init__.py     # get_callbacks() factory, CALLBACK_REGISTRY
+    │   ├── base.py         # Callback base class, CallbackManager
+    │   ├── early_stopping.py     # EarlyStoppingCallback
+    │   ├── checkpoint.py   # ModelCheckpointCallback (top-k model saving)
+    │   ├── lr_monitor.py   # LearningRateMonitor
+    │   ├── progress.py     # ProgressBar (tqdm)
+    │   ├── swa.py          # StochasticWeightAveraging
+    │   ├── gradient.py     # GradientClipping, GradientNormMonitor
+    │   └── augmentation.py # MixUpCallback, CutMixCallback
     ├── training/           # Training utilities
     │   ├── __init__.py     # Training utilities API
     │   └── ema.py          # ModelEMA: Exponential Moving Average
@@ -237,6 +247,58 @@ training:
 - `mixed_precision`: Single modern GPU (most common for production)
 - `accelerate`: Multiple GPUs, distributed training
 - `dp`: Privacy-sensitive data requiring formal guarantees
+
+### Callbacks System
+
+**NEW:** Extensible callback system for injecting custom behavior into the training loop.
+
+**Design Pattern:**
+- All callbacks inherit from `Callback` base class
+- `CallbackManager` orchestrates multiple callbacks
+- Callbacks invoked at lifecycle hooks: `on_train_begin`, `on_epoch_begin`, `on_phase_begin`, `on_batch_begin`, `on_backward_end`, `on_batch_end`, `on_phase_end`, `on_epoch_end`, `on_train_end`
+- Configuration-driven via `config['training']['callbacks']`
+- Loaded automatically by CLI via `get_callbacks(config)`
+
+**Available callbacks:**
+- `early_stopping` - Stop training when metric stops improving
+- `model_checkpoint` - Save top-k best models based on metric
+- `lr_monitor` - Log learning rate to TensorBoard
+- `progress_bar` - Display training progress with tqdm
+- `swa` - Stochastic Weight Averaging (0.5-2% accuracy improvement)
+- `gradient_clipping` - Clip gradients to prevent exploding gradients
+- `gradient_norm_monitor` - Monitor and log gradient norms
+- `mixup` - MixUp data augmentation (1-3% accuracy improvement)
+- `cutmix` - CutMix data augmentation (1-3% accuracy improvement)
+
+**Example config:**
+```yaml
+training:
+  callbacks:
+    - type: 'early_stopping'
+      monitor: 'val_acc'
+      patience: 10
+      mode: 'max'
+
+    - type: 'model_checkpoint'
+      monitor: 'val_acc'
+      save_top_k: 3
+
+    - type: 'swa'
+      swa_start_epoch: 75
+      swa_lr: 0.0005
+
+    - type: 'mixup'
+      alpha: 0.2
+      apply_prob: 0.5
+```
+
+**Backward Compatibility:**
+- Legacy `early_stopping` config still supported
+- If `callbacks` section exists, it takes precedence
+- All trainers support callbacks (passed via `get_trainer(..., callbacks=callbacks)`)
+
+**Custom Callbacks:**
+Users can create custom callbacks by subclassing `Callback` and implementing desired lifecycle hooks. See `docs/development/custom-callbacks.md` for guide.
 
 ### Inference Strategies
 

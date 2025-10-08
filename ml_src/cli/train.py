@@ -10,6 +10,7 @@ import torch
 from loguru import logger
 from torch.utils.tensorboard import SummaryWriter
 
+from ml_src.core.callbacks import get_callbacks
 from ml_src.core.checkpointing import load_checkpoint
 from ml_src.core.config import load_config, override_config
 from ml_src.core.data import get_class_names, get_datasets
@@ -166,6 +167,9 @@ def main():
         start_epoch += 1
         logger.info(f"Resuming training from epoch {start_epoch}")
 
+    # Load callbacks from configuration
+    callbacks = get_callbacks(config)
+
     # Create trainer
     trainer = get_trainer(
         config=config,
@@ -178,6 +182,7 @@ def main():
         device=device,
         run_dir=run_dir,
         class_names=class_names,
+        callbacks=callbacks,
     )
 
     # Train the model
