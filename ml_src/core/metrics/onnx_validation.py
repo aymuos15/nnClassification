@@ -280,6 +280,7 @@ def validate_onnx_model(
     test_loader: torch.utils.data.DataLoader,
     device: str = "cpu",
     num_batches: int = 10,
+    use_ema: bool = False,
 ) -> dict:
     """
     Comprehensive ONNX model validation with PyTorch comparison.
@@ -373,7 +374,20 @@ def validate_onnx_model(
     config = checkpoint["config"]
 
     pytorch_model = get_model(config, device=device)
-    pytorch_model.load_state_dict(checkpoint["model_state_dict"])
+
+    model_state = checkpoint["model_state_dict"]
+    if use_ema:
+        ema_state = checkpoint.get("ema_state", {}).get("ema_model_state")
+        if ema_state is None:
+            logger.warning(
+                "EMA weights requested but not found in checkpoint {}. Using standard weights.",
+                checkpoint_path,
+            )
+        else:
+            model_state = ema_state
+            logger.info("Validating ONNX against EMA weights")
+
+    pytorch_model.load_state_dict(model_state)
     pytorch_model.eval()
     logger.success("PyTorch model loaded successfully")
 

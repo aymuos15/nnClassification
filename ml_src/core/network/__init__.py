@@ -140,7 +140,7 @@ def save_model(model, path):
     logger.success(f"Model saved to {path}")
 
 
-def load_model(model, path, device):
+def load_model(model, path, device, use_ema: bool = False):
     """
     Load model state dict from a file.
 
@@ -162,10 +162,30 @@ def load_model(model, path, device):
     checkpoint = torch.load(path, map_location=device, weights_only=False)
 
     # Handle both full checkpoints and standalone state dicts
-    if "model_state_dict" in checkpoint:
-        model.load_state_dict(checkpoint["model_state_dict"])
+    if use_ema and isinstance(checkpoint, dict) and "ema_state" in checkpoint:
+        ema_state = checkpoint["ema_state"].get("ema_model_state")
+        if ema_state is None:
+            logger.warning(
+                "EMA state missing model weights in checkpoint {}. Falling back to standard weights.",
+                path,
+            )
+            model_state = checkpoint.get("model_state_dict", checkpoint)
+        else:
+            model_state = ema_state
+            logger.info("Loaded EMA weights from checkpoint {}", path)
     else:
-        model.load_state_dict(checkpoint)
+        if use_ema:
+            logger.warning(
+                "EMA weights requested but not found in checkpoint {}. Using standard weights.",
+                path,
+            )
+
+        if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+            model_state = checkpoint["model_state_dict"]
+        else:
+            model_state = checkpoint
+
+    model.load_state_dict(model_state)
 
     # Ensure model is on the correct device
     model = model.to(device)

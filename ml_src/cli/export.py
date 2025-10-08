@@ -38,6 +38,7 @@ def export_with_validation(
     benchmark,
     comprehensive_validate,
     num_val_batches,
+    use_ema=False,
 ):
     """
     Export a single checkpoint to ONNX format with optional validation and benchmarking.
@@ -61,6 +62,7 @@ def export_with_validation(
         output_path=output_path,
         opset_version=opset_version,
         input_size=input_size,
+        use_ema=use_ema,
     )
 
     if not success:
@@ -97,6 +99,7 @@ def export_with_validation(
                     test_loader=test_loader,
                     device="cpu",
                     num_batches=num_val_batches,
+                    use_ema=use_ema,
                 )
 
                 # Print status with color coding
@@ -137,7 +140,20 @@ def export_with_validation(
 
             # Recreate model
             model = get_model(config, device="cpu")
-            model.load_state_dict(checkpoint["model_state_dict"])
+
+            model_state = checkpoint["model_state_dict"]
+            if use_ema:
+                ema_state = checkpoint.get("ema_state", {}).get("ema_model_state")
+                if ema_state is None:
+                    logger.warning(
+                        "EMA weights requested but not found in checkpoint {}. Using standard weights.",
+                        checkpoint_path,
+                    )
+                else:
+                    model_state = ema_state
+                    logger.info("Validating ONNX export with EMA weights")
+
+            model.load_state_dict(model_state)
             model.eval()
 
             # Determine input size (match export_to_onnx logic)
@@ -190,7 +206,20 @@ def export_with_validation(
                 return success, message, validation_report
 
             model = get_model(config, device="cpu")
-            model.load_state_dict(checkpoint["model_state_dict"])
+
+            model_state = checkpoint["model_state_dict"]
+            if use_ema:
+                ema_state = checkpoint.get("ema_state", {}).get("ema_model_state")
+                if ema_state is None:
+                    logger.warning(
+                        "EMA weights requested but not found in checkpoint {}. Using standard weights.",
+                        checkpoint_path,
+                    )
+                else:
+                    model_state = ema_state
+                    logger.info("Benchmarking EMA weights")
+
+            model.load_state_dict(model_state)
             model.eval()
 
             # Determine input size
@@ -393,6 +422,11 @@ Notes:
         type=str,
         help="Custom input size as comma-separated values (e.g., '3,299,299' for C,H,W)",
     )
+    parser.add_argument(
+        "--use-ema",
+        action="store_true",
+        help="Use EMA weights from checkpoints when available",
+    )
 
     args = parser.parse_args()
 
@@ -474,6 +508,7 @@ Notes:
             benchmark=args.benchmark,
             comprehensive_validate=args.validate,
             num_val_batches=args.num_val_batches,
+            use_ema=args.use_ema,
         )
 
         if success:

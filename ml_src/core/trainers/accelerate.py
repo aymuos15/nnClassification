@@ -175,6 +175,11 @@ class AccelerateTrainer(BaseTrainer):
             if self.early_stopping is not None:
                 early_stopping_state = self.early_stopping.get_state()
 
+            # Get EMA state if enabled
+            ema_state = None
+            if self.ema is not None:
+                ema_state = self.ema.state_dict()
+
             save_checkpoint(
                 model=unwrapped_model,
                 optimizer=self.optimizer,
@@ -188,6 +193,7 @@ class AccelerateTrainer(BaseTrainer):
                 config=self.config,
                 checkpoint_path=path,
                 early_stopping_state=early_stopping_state,
+                ema_state=ema_state,
             )
 
         # Wait for all processes to reach this point
@@ -219,6 +225,7 @@ class AccelerateTrainer(BaseTrainer):
             val_accs,
             _,
             early_stopping_state,
+            ema_state,
         ) = load_checkpoint(
             checkpoint_path=path,
             model=unwrapped_model,
@@ -231,5 +238,10 @@ class AccelerateTrainer(BaseTrainer):
         if early_stopping_state is not None and self.early_stopping is not None:
             self.early_stopping.load_state(early_stopping_state)
             logger.success("Restored early stopping state from checkpoint")
+
+        # Restore EMA state if available
+        if ema_state is not None and self.ema is not None:
+            self.ema.load_state_dict(ema_state)
+            logger.success("Restored EMA state from checkpoint")
 
         return epoch, best_acc, train_losses, val_losses, train_accs, val_accs

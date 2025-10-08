@@ -73,8 +73,18 @@ ml-train --config configs/my_dataset_config.yaml
 # Run hyperparameter search (requires: uv pip install -e ".[optuna]")
 ml-search --config configs/my_dataset_config.yaml --n-trials 50
 
-# Run inference
+# Run inference (standard)
 ml-inference --checkpoint_path runs/my_run/weights/best.pt
+
+# Run inference with Test-Time Augmentation (TTA)
+ml-inference --checkpoint_path runs/my_run/weights/best.pt --tta
+ml-inference --checkpoint_path runs/my_run/weights/best.pt --tta --tta-augmentations horizontal_flip vertical_flip
+
+# Run ensemble inference from multiple folds
+ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt runs/fold_2/weights/best.pt
+
+# Combined TTA + Ensemble for maximum performance
+ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt --tta
 
 # Export model to ONNX for deployment
 ml-export --checkpoint runs/my_run/weights/best.pt
@@ -104,7 +114,12 @@ ml_src/
 │   └── search.py           # ml-search: Hyperparameter optimization with Optuna
 │
 └── core/                   # Reusable ML components (no CLI dependencies)
-    ├── dataset.py          # IndexedImageDataset (index-based loading)
+    ├── data/               # Dataset handling and analysis
+    │   ├── __init__.py     # Data module API
+    │   ├── datasets.py     # IndexedImageDataset (index-based loading)
+    │   ├── splitting.py    # Dataset detection utilities
+    │   ├── statistics.py   # Dataset statistics and validation
+    │   └── visualize_stats.py  # Statistics visualization
     ├── loader.py           # DataLoader creation
     ├── network/            # Model architectures
     │   ├── __init__.py     # get_model() API (routes base vs custom)
@@ -112,24 +127,39 @@ ml_src/
     │   └── custom.py       # Custom architectures (SimpleCNN, TinyNet)
     ├── trainers/           # Specialized trainer implementations
     │   ├── __init__.py     # get_trainer() factory function
-    │   ├── base.py         # BaseTrainer abstract class (with Optuna trial support)
+    │   ├── base.py         # BaseTrainer abstract class (with EMA and Optuna support)
     │   ├── standard.py     # StandardTrainer: Traditional PyTorch training
     │   ├── mixed_precision.py  # MixedPrecisionTrainer: PyTorch AMP
     │   ├── accelerate.py   # AccelerateTrainer: Multi-GPU with Accelerate
     │   └── differential_privacy.py  # DPTrainer: Opacus differential privacy
+    ├── training/           # Training utilities
+    │   ├── __init__.py     # Training utilities API
+    │   └── ema.py          # ModelEMA: Exponential Moving Average
+    ├── inference/          # Inference strategies for test-time optimization
+    │   ├── __init__.py     # get_inference_strategy() factory function
+    │   ├── base.py         # BaseInferenceStrategy abstract class
+    │   ├── standard.py     # StandardInference: Basic PyTorch inference
+    │   ├── mixed_precision.py  # MixedPrecisionInference: AMP inference
+    │   ├── accelerate.py   # AccelerateInference: Multi-GPU inference
+    │   ├── tta.py          # TTAInference: Test-Time Augmentation
+    │   ├── ensemble.py     # EnsembleInference: Multi-model ensembling
+    │   └── tta_ensemble.py # TTAEnsembleInference: Combined TTA + Ensemble
+    ├── transforms/         # Transform utilities
+    │   ├── __init__.py     # Transform API
+    │   └── tta.py          # TTA augmentation utilities
     ├── loss.py             # Loss functions
     ├── optimizer.py        # Optimizers and schedulers
     ├── lr_finder.py        # Learning rate finder implementation
     ├── export.py           # ONNX export utilities
     ├── search.py           # Hyperparameter search utilities (Optuna wrapper)
-    ├── test.py             # Evaluation/testing
+    ├── test.py             # Evaluation/testing (deprecated)
     ├── metrics/            # Comprehensive metrics suite
     │   ├── __init__.py     # Metrics API
     │   ├── classification.py  # Classification-specific metrics
     │   ├── utils.py        # Metric utilities
     │   ├── visualization.py   # Metric visualization
     │   └── onnx_validation.py # ONNX model validation and benchmarking
-    ├── checkpointing.py    # Checkpoint save/load, summaries
+    ├── checkpointing.py    # Checkpoint save/load with EMA support
     ├── seeding.py          # Reproducibility (seed setting)
     └── visual/             # Visualization utilities
         ├── tensorboard.py  # TensorBoard dataset/prediction visualization
@@ -207,6 +237,76 @@ training:
 - `mixed_precision`: Single modern GPU (most common for production)
 - `accelerate`: Multiple GPUs, distributed training
 - `dp`: Privacy-sensitive data requiring formal guarantees
+
+### Inference Strategies
+
+All inference strategies inherit from `BaseInferenceStrategy` and are selected via `config['inference']['strategy']`.
+
+**Available strategies:**
+- `standard` (default) - Traditional PyTorch inference
+- `mixed_precision` - AMP inference for 2-3x speedup
+- `accelerate` - Multi-GPU/distributed inference
+- `tta` - Test-Time Augmentation for improved robustness (1-3% accuracy gain, slower)
+- `ensemble` - Combine multiple model checkpoints (e.g., from CV folds)
+- `tta_ensemble` - Combined TTA + Ensemble for maximum performance (slowest, best accuracy)
+
+**Factory function:** `get_inference_strategy(config, device=None)`
+
+**Example configs:**
+
+```yaml
+# TTA inference
+inference:
+  strategy: 'tta'
+  tta:
+    augmentations: ['horizontal_flip', 'vertical_flip']
+    aggregation: 'mean'  # or 'max', 'voting'
+
+# Ensemble inference
+inference:
+  strategy: 'ensemble'
+  ensemble:
+    checkpoints:
+      - 'runs/fold_0/weights/best.pt'
+      - 'runs/fold_1/weights/best.pt'
+      - 'runs/fold_2/weights/best.pt'
+    aggregation: 'soft_voting'  # or 'hard_voting', 'weighted'
+    weights: [0.4, 0.3, 0.3]  # Optional, for weighted aggregation
+
+# Combined TTA + Ensemble
+inference:
+  strategy: 'tta_ensemble'
+  tta:
+    augmentations: ['horizontal_flip']
+    aggregation: 'mean'
+  ensemble:
+    checkpoints: ['runs/fold_0/weights/best.pt', 'runs/fold_1/weights/best.pt']
+    aggregation: 'soft_voting'
+```
+
+**CLI usage (easier than config):**
+```bash
+# TTA inference
+ml-inference --checkpoint_path runs/fold_0/weights/best.pt --tta
+
+# Ensemble inference
+ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt
+
+# Combined TTA + Ensemble
+ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt --tta
+```
+
+**When to use each:**
+- `standard`: Fast inference, baseline performance
+- `tta`: Single model, want robustness improvement (~1-3% accuracy gain)
+- `ensemble`: Have multiple trained folds, want best accuracy (~2-5% gain)
+- `tta_ensemble`: Maximum accuracy needed, inference time not critical (~3-8% total gain)
+
+**Performance comparison:**
+- `standard`: 1x speed (baseline)
+- `tta` (5 augmentations): ~5x slower
+- `ensemble` (5 models): ~5x slower
+- `tta_ensemble` (5 models × 5 augmentations): ~25x slower
 
 ### Adding New Models
 
@@ -338,6 +438,76 @@ For privacy-sensitive data (medical, financial). Slower and requires hyperparame
 - CPU only or learning? → `standard`
 
 See [Advanced Training Guide](docs/user-guides/advanced-training.md) for detailed documentation.
+
+### Model EMA (Exponential Moving Average)
+
+**What is EMA?**
+Maintains a "shadow" copy of model weights updated as an exponential moving average during training. Typically improves test accuracy by **0.5-2%** with zero additional training cost. Used in SOTA models (YOLO, Stable Diffusion).
+
+**How it works:**
+- After each `optimizer.step()`: `ema_weight = decay * ema_weight + (1-decay) * current_weight`
+- Separate validation pass with EMA model each epoch
+- Both regular and EMA metrics logged to TensorBoard
+
+**Enable in config:**
+```yaml
+training:
+  ema:
+    enabled: true
+    decay: 0.9999      # 0.999-0.9999 typical (higher = slower update)
+    warmup_steps: 2000  # Optional: skip first N training steps
+```
+
+**TensorBoard metrics:**
+- `Accuracy/val` - Regular model validation accuracy
+- `Accuracy/val_ema` - EMA model validation accuracy (typically 0.5-2% higher!)
+
+**Checkpointing:**
+- EMA state automatically saved in checkpoints
+- Resume training with EMA intact
+- Backward compatible (old checkpoints without EMA work fine)
+
+**When to use:**
+- Production deployments (more stable predictions)
+- Competitive benchmarks (free accuracy gain)
+- Any scenario where test performance matters
+
+### Dataset Statistics & Validation
+
+**What it does:**
+Comprehensive dataset analysis to detect issues before training:
+- Class distribution & imbalance detection (warns if ratio > 3:1)
+- Image statistics (sizes, aspect ratios, color modes)
+- Data quality checks (corrupted files)
+- Automatic warnings and recommendations
+
+**Usage:**
+```python
+from ml_src.core.data import analyze_dataset, generate_statistics_report, generate_all_plots
+
+# Analyze dataset
+stats = analyze_dataset('data/my_dataset/raw', sample_size=500)
+
+# Generate text report
+generate_statistics_report(stats, 'data/my_dataset/splits/statistics.txt')
+
+# Generate visualization plots (class distribution, image sizes)
+generate_all_plots(stats, 'data/my_dataset/splits/statistics/')
+
+# Check for issues
+if stats['imbalance_ratio'] > 3.0:
+    print("⚠️ Dataset is imbalanced - consider focal loss or class weights")
+```
+
+**Output files:**
+- `statistics.txt` - Human-readable report with warnings
+- `statistics/class_distribution.png` - Bar chart of class counts
+- `statistics/image_statistics.png` - Size/aspect ratio histograms
+
+**When to use:**
+- Before training (detect imbalance, corruption, size issues)
+- When configuring training (inform decisions about loss functions, augmentation)
+- For documentation (reproducibility, dataset characteristics)
 
 ### Training a New Dataset
 1. Organize data in `data/{name}/raw/class1/`, `data/{name}/raw/class2/`, etc.

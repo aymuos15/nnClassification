@@ -56,6 +56,19 @@ training:
   num_epochs: 3
   device: 'cuda:0'  # Will fallback to cpu if cuda not available
 
+  # Model EMA (Exponential Moving Average) configuration
+  # EMA maintains a shadow copy of model weights updated as a moving average during training.
+  # Often improves test accuracy by 0.5-2% with no additional training cost.
+  # Recommended for production deployments and competitive benchmarks.
+  ema:
+    enabled: false           # Enable EMA (default: false)
+    decay: 0.9999            # Decay rate for EMA updates (0.999-0.9999 typical)
+                             # Higher decay = slower update, smoother weights
+                             # Common values: 0.999 (fast), 0.9999 (standard), 0.99999 (slow)
+    warmup_steps: 0          # Skip EMA updates for first N training steps (default: 0)
+                             # Useful to let model stabilize before tracking EMA
+                             # Typical: 0 (no warmup) or 2000-5000 (with warmup)
+
   # Early stopping configuration
   early_stopping:
     enabled: false         # Enable early stopping to prevent overfitting
@@ -67,16 +80,68 @@ training:
 # Inference settings
 inference:
   # Inference strategy: Selects the inference optimization strategy
-  # Options: 'standard', 'mixed_precision', 'accelerate'
+  # Options: 'standard', 'mixed_precision', 'accelerate', 'tta', 'ensemble', 'tta_ensemble'
   # - 'standard': Traditional PyTorch inference (default, backward compatible, works on CPU/GPU)
   # - 'mixed_precision': Automatic Mixed Precision (AMP) inference for 2-3x speedup on GPU
   # - 'accelerate': HuggingFace Accelerate for multi-GPU/distributed inference
+  # - 'tta': Test-Time Augmentation for improved robustness (slower, higher accuracy)
+  # - 'ensemble': Combine multiple model checkpoints (e.g., from different CV folds)
+  # - 'tta_ensemble': Combined TTA + Ensemble for maximum performance (slowest, best accuracy)
   # Can be omitted - defaults to 'standard'
   strategy: 'standard'
+  use_ema: false          # Use EMA weights during inference when available (requires EMA-enabled checkpoints)
 
   # Mixed precision inference settings (only used when strategy: 'mixed_precision')
   # amp_dtype: 'float16'  # Options: 'float16' (faster, default) or 'bfloat16' (more stable)
   # Note: Mixed precision requires CUDA. Falls back to standard inference on CPU.
+
+  # ============================================================================
+  # TEST-TIME AUGMENTATION (TTA) SETTINGS
+  # ============================================================================
+  # Used when strategy: 'tta' or 'tta_ensemble'
+  # Applies multiple augmented versions of each test image and aggregates predictions
+  # for improved robustness. Slower but can improve accuracy by 1-3%.
+  #
+  # tta:
+  #   # Augmentations to apply during inference
+  #   # Options: 'horizontal_flip', 'vertical_flip', 'rotate_90', 'rotate_180', 'rotate_270'
+  #   augmentations:
+  #     - 'horizontal_flip'
+  #     - 'vertical_flip'
+  #
+  #   # How to aggregate predictions across augmentations
+  #   # Options:
+  #   #   - 'mean': Average logits (soft voting, recommended for best accuracy)
+  #   #   - 'max': Take maximum logits
+  #   #   - 'voting': Hard voting (majority vote on predicted classes)
+  #   aggregation: 'mean'
+
+  # ============================================================================
+  # ENSEMBLE SETTINGS
+  # ============================================================================
+  # Used when strategy: 'ensemble' or 'tta_ensemble'
+  # Combines predictions from multiple models trained on different folds or runs
+  # for improved generalization. Requires multiple checkpoints.
+  #
+  # ensemble:
+  #   # List of checkpoint paths to ensemble
+  #   checkpoints:
+  #     - 'runs/my_dataset_fold_0/weights/best.pt'
+  #     - 'runs/my_dataset_fold_1/weights/best.pt'
+  #     - 'runs/my_dataset_fold_2/weights/best.pt'
+  #     - 'runs/my_dataset_fold_3/weights/best.pt'
+  #     - 'runs/my_dataset_fold_4/weights/best.pt'
+  #
+  #   # How to aggregate predictions across models
+  #   # Options:
+  #   #   - 'soft_voting': Average logits (recommended for best accuracy)
+  #   #   - 'hard_voting': Majority vote on predicted classes
+  #   #   - 'weighted': Weighted average using weights below
+  #   aggregation: 'soft_voting'
+  #
+  #   # Optional: Weights for each model (only used with aggregation: 'weighted')
+  #   # Must match number of checkpoints. If omitted, uses equal weights.
+  #   # weights: [0.25, 0.20, 0.20, 0.20, 0.15]  # Sum should be 1.0 (auto-normalized)
 
 # Optimizer configuration
 optimizer:

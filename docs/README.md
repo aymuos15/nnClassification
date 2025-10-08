@@ -40,10 +40,14 @@ Practical workflows and how-tos:
 
 - **[Training](user-guides/training.md)** - Training workflows & trainer selection
 - **[Advanced Training](user-guides/advanced-training.md)** - Mixed precision, multi-GPU, DP
-- **[Inference](user-guides/inference.md)** - Running evaluation
+- **[Inference](user-guides/inference.md)** - Running evaluation & inference strategies
+- **[Test-Time Augmentation](user-guides/test-time-augmentation.md)** - TTA for improved accuracy
+- **[Ensemble Inference](user-guides/ensemble-inference.md)** - Combining multiple models
 - **[Resuming Training](user-guides/resuming-training.md)** - Continue interrupted runs
 - **[Monitoring](user-guides/monitoring.md)** - TensorBoard & logging
 - **[Hyperparameter Tuning](user-guides/hyperparameter-tuning.md)** - Systematic search
+- **[Model Export](user-guides/model-export.md)** - ONNX export & deployment
+- **[Learning Rate Finder](user-guides/lr-finder.md)** - Find optimal learning rate
 
 ### 🏗️ Architecture
 
@@ -92,9 +96,19 @@ See: [Resuming Training](user-guides/resuming-training.md)
 
 ### Run Inference
 ```bash
-ml-inference --run_dir runs/hymenoptera_base_fold_0 --checkpoint best.pt
+# Standard inference
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt
+
+# TTA for improved accuracy
+ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt --tta
+
+# Ensemble multiple models
+ml-inference --ensemble \
+  runs/fold_0/weights/best.pt \
+  runs/fold_1/weights/best.pt \
+  runs/fold_2/weights/best.pt
 ```
-See: [Inference Guide](user-guides/inference.md)
+See: [Inference Guide](user-guides/inference.md), [TTA Guide](user-guides/test-time-augmentation.md), [Ensemble Guide](user-guides/ensemble-inference.md)
 
 ### Monitor Training
 ```bash

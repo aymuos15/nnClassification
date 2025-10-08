@@ -15,6 +15,7 @@ from ml_src.core.metrics import (
     log_confusion_matrix_to_tensorboard,
     save_classification_report,
 )
+from ml_src.core.training.ema import ModelEMA
 
 
 def collect_predictions(model, dataloader, device):
@@ -154,6 +155,21 @@ class BaseTrainer(ABC):
             logger.info(
                 f"Early stopping enabled: patience={self.early_stopping.patience}, "
                 f"metric={self.early_stopping.metric}, mode={self.early_stopping.mode}"
+            )
+
+        # Initialize EMA if enabled
+        self.ema = None
+        if config.get("training", {}).get("ema", {}).get("enabled", False):
+            ema_config = config["training"]["ema"]
+            self.ema = ModelEMA(
+                model=model,
+                decay=ema_config.get("decay", 0.9999),
+                warmup_steps=ema_config.get("warmup_steps", 0),
+                device=device,
+            )
+            logger.info(
+                f"Model EMA enabled: decay={self.ema.decay}, "
+                f"warmup_steps={self.ema.warmup_steps}"
             )
 
         # Optuna trial for pruning (set externally if used in hyperparameter search)
@@ -353,6 +369,9 @@ class BaseTrainer(ABC):
                     # Forward pass
                     if phase == "train":
                         outputs, loss = self.training_step(inputs, labels)
+                        # Update EMA after training step (if enabled)
+                        if self.ema is not None:
+                            self.ema.update(self.model)
                     else:
                         with torch.no_grad():
                             outputs, loss = self.validation_step(inputs, labels)
@@ -392,6 +411,38 @@ class BaseTrainer(ABC):
                     # Log to TensorBoard
                     self.writer.add_scalar("Loss/val", epoch_loss, epoch)
                     self.writer.add_scalar("Accuracy/val", epoch_acc.item(), epoch)
+
+                    # Evaluate EMA model if enabled
+                    if self.ema is not None:
+                        ema_running_loss = 0.0
+                        ema_running_corrects = 0
+                        ema_model = self.ema.model
+                        ema_model.eval()
+
+                        with torch.no_grad():
+                            for ema_inputs, ema_labels in self.dataloaders["val"]:
+                                ema_inputs = ema_inputs.to(self.device)
+                                ema_labels = ema_labels.to(self.device)
+
+                                # Forward pass with EMA model
+                                ema_outputs = ema_model(ema_inputs)
+                                ema_loss = self.criterion(ema_outputs, ema_labels)
+                                _, ema_preds = torch.max(ema_outputs, 1)
+
+                                ema_running_loss += ema_loss.item() * ema_inputs.size(0)
+                                ema_running_corrects += torch.sum(ema_preds == ema_labels.data)
+
+                        ema_epoch_loss = ema_running_loss / self.dataset_sizes["val"]
+                        ema_epoch_acc = ema_running_corrects.double() / self.dataset_sizes["val"]
+
+                        # Log EMA metrics to TensorBoard
+                        self.writer.add_scalar("Loss/val_ema", ema_epoch_loss, epoch)
+                        self.writer.add_scalar("Accuracy/val_ema", ema_epoch_acc.item(), epoch)
+
+                        logger.opt(colors=True).info(
+                            f"<green>val_ema</> Loss: <yellow>{ema_epoch_loss:.4f}</> "
+                            f"Acc: <yellow>{ema_epoch_acc:.4f}</>"
+                        )
 
                 # Save best model
                 if phase == "val" and epoch_acc > best_acc:

@@ -285,6 +285,7 @@ def test_checkpoint_compatibility_standard_mixed_precision():
             loaded_val_accs,
             loaded_config,
             early_stopping_state,
+            ema_state,
         ) = load_checkpoint(
             checkpoint_path=checkpoint_path,
             model=model2,
@@ -298,6 +299,7 @@ def test_checkpoint_compatibility_standard_mixed_precision():
         assert best_acc == max(val_accs)
         assert len(loaded_train_losses) == 2
         assert len(loaded_val_losses) == 2
+        assert ema_state is None
 
         # Phase 3: Continue training with MixedPrecisionTrainer for 1 more epoch
         config["training"]["trainer_type"] = "mixed_precision"

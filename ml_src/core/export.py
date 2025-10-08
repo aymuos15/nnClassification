@@ -137,7 +137,13 @@ def validate_onnx_export(pytorch_model, onnx_path, dummy_input, device='cpu'):
         }
 
 
-def export_to_onnx(checkpoint_path, output_path, opset_version=17, input_size=None):
+def export_to_onnx(
+    checkpoint_path,
+    output_path,
+    opset_version=17,
+    input_size=None,
+    use_ema: bool = False,
+):
     """
     Export a PyTorch model checkpoint to ONNX format.
 
@@ -199,12 +205,24 @@ def export_to_onnx(checkpoint_path, output_path, opset_version=17, input_size=No
             logger.error(error_msg)
             return False, error_msg
 
+        model_state = checkpoint["model_state_dict"]
+        if use_ema:
+            ema_state = checkpoint.get("ema_state", {}).get("ema_model_state")
+            if ema_state is None:
+                logger.warning(
+                    "EMA weights requested but not found in checkpoint {}. Using standard weights.",
+                    checkpoint_path,
+                )
+            else:
+                model_state = ema_state
+                logger.info("Exporting EMA weights from checkpoint {}", checkpoint_path)
+
         logger.info("Checkpoint loaded successfully")
 
         # Step 3: Recreate model architecture
         logger.info("Recreating model architecture from config")
         model = get_model(config, device="cpu")
-        model.load_state_dict(checkpoint["model_state_dict"])
+        model.load_state_dict(model_state)
         model.eval()
         logger.success("Model architecture recreated and weights loaded")
 

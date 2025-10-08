@@ -154,6 +154,7 @@ def main():
             resume_val_accs,
             _,
             _,  # early_stopping_state (handled by trainer)
+            _,  # ema_state (handled by trainer)
         ) = load_checkpoint(
             checkpoint_path=args.resume,
             model=model,

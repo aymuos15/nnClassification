@@ -92,8 +92,23 @@ ml-train --config configs/my_dataset_config.yaml --resume runs/my_dataset_fold_0
 
 ### Inference & Export
 ```bash
-# Run inference manually on a specific checkpoint
+# Standard inference
 ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt
+
+# Test-Time Augmentation (TTA) for +1-3% accuracy
+ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt --tta
+
+# Ensemble multiple models for +2-5% accuracy
+ml-inference --ensemble \
+  runs/my_dataset_fold_0/weights/best.pt \
+  runs/my_dataset_fold_1/weights/best.pt \
+  runs/my_dataset_fold_2/weights/best.pt
+
+# TTA + Ensemble for maximum accuracy (+3-8%)
+ml-inference --ensemble \
+  runs/my_dataset_fold_0/weights/best.pt \
+  runs/my_dataset_fold_1/weights/best.pt \
+  --tta
 
 # Export model to ONNX format for deployment
 ml-export --checkpoint runs/my_dataset_base_fold_0/weights/best.pt
@@ -126,6 +141,36 @@ Or use TensorBoard directly:
 ```bash
 tensorboard --logdir runs/
 ```
+
+### Dataset Statistics (Optional but Recommended)
+
+```python
+# Analyze dataset before training
+from ml_src.core.data import analyze_dataset, generate_statistics_report, generate_all_plots
+
+stats = analyze_dataset('data/my_dataset/raw')
+generate_statistics_report(stats, 'data/my_dataset/splits/statistics.txt')
+generate_all_plots(stats, 'data/my_dataset/splits/statistics/')
+
+# Check for issues
+if stats['imbalance_ratio'] > 3.0:
+    print("⚠️ Dataset is imbalanced - consider focal loss or class weights")
+```
+
+### Model EMA (Exponential Moving Average)
+
+Enable EMA for **0.5-2% accuracy improvement** with zero training cost:
+
+```yaml
+# In your config file
+training:
+  ema:
+    enabled: true
+    decay: 0.9999      # 0.999-0.9999 typical
+    warmup_steps: 2000  # Optional
+```
+
+EMA maintains a shadow copy of model weights for better generalization. Both regular and EMA validation metrics are logged to TensorBoard (`Accuracy/val` and `Accuracy/val_ema`).
 
 ## Configuration
 
