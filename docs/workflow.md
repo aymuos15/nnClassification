@@ -271,7 +271,7 @@ Removes TensorBoard log files to save space.
 
 ## 8. Inference
 
-### Run Inference on Test Set
+### Standard Inference
 ```bash
 ml-inference --checkpoint_path runs/my_run/weights/best.pt
 ```
@@ -293,9 +293,96 @@ ml-inference \
 ```
 Runs inference on validation set instead of test set.
 
+### Test-Time Augmentation (TTA)
+```bash
+# TTA with default augmentations (all available)
+ml-inference --checkpoint_path runs/my_run/weights/best.pt --tta
+
+# TTA with specific augmentations
+ml-inference \
+  --checkpoint_path runs/my_run/weights/best.pt \
+  --tta \
+  --tta-augmentations horizontal_flip vertical_flip
+```
+Improves robustness by averaging predictions across augmented versions (~1-3% accuracy gain).
+
+### Ensemble Inference
+```bash
+# Combine predictions from multiple models
+ml-inference --ensemble \
+  runs/fold_0/weights/best.pt \
+  runs/fold_1/weights/best.pt \
+  runs/fold_2/weights/best.pt
+```
+Averages predictions from multiple checkpoints for improved accuracy (~2-5% gain).
+
+### Combined TTA + Ensemble
+```bash
+# Maximum accuracy: ensemble of models with TTA
+ml-inference --ensemble \
+  runs/fold_0/weights/best.pt \
+  runs/fold_1/weights/best.pt \
+  runs/fold_2/weights/best.pt \
+  --tta
+
+# With specific augmentations
+ml-inference --ensemble \
+  runs/fold_0/weights/best.pt \
+  runs/fold_1/weights/best.pt \
+  --tta \
+  --tta-augmentations horizontal_flip vertical_flip
+```
+Combines both techniques for maximum performance (~3-8% total gain, slowest).
+
 ---
 
-## 9. Cross-Validation Workflow
+## 9. Model Export
+
+### Basic ONNX Export
+```bash
+ml-export --checkpoint runs/my_run/weights/best.pt
+```
+Exports PyTorch model to ONNX format for deployment (`runs/my_run/weights/best.onnx`).
+
+### Export with Validation
+```bash
+ml-export --checkpoint runs/my_run/weights/best.pt --validate
+```
+Validates exported model can be loaded and runs basic forward pass.
+
+### Export with Comprehensive Validation
+```bash
+ml-export --checkpoint runs/my_run/weights/best.pt --comprehensive-validate
+```
+Compares PyTorch vs ONNX outputs on test dataset for accuracy verification.
+
+### Export with Benchmarking
+```bash
+ml-export --checkpoint runs/my_run/weights/best.pt --benchmark
+```
+Measures inference speed for both PyTorch and ONNX models.
+
+### Batch Export Multiple Checkpoints
+```bash
+ml-export --checkpoint "runs/*/weights/best.pt" --validate
+```
+Exports all best checkpoints from multiple runs using glob patterns.
+
+### Custom Export Options
+```bash
+ml-export \
+  --checkpoint runs/my_run/weights/best.pt \
+  --output custom_model.onnx \
+  --input_size 224 224 \
+  --opset 14 \
+  --comprehensive-validate \
+  --benchmark
+```
+Full control over export parameters with validation and benchmarking.
+
+---
+
+## 10. Cross-Validation Workflow
 
 ### Train All Folds
 ```bash
@@ -317,7 +404,7 @@ Each fold produces independent results; manually aggregate metrics.
 
 ---
 
-## 10. Common Workflows
+## 11. Common Workflows
 
 ### Quick Start: Single Training Run
 ```bash
@@ -415,9 +502,39 @@ ml-visualise --mode launch --run_dir runs/my_dataset_fold_0
 ml-inference --checkpoint_path runs/my_dataset_fold_0/weights/best.pt
 ```
 
+### Maximum Accuracy Workflow: Cross-Validation + TTA + Ensemble
+```bash
+# 1. Prepare data
+ml-split --raw_data data/my_dataset/raw --folds 5
+ml-init-config data/my_dataset --yes
+
+# 2. Find optimal learning rate (optional)
+ml-lr-finder --config configs/my_dataset_config.yaml
+
+# 3. Train all folds
+for fold in {0..4}; do
+  ml-train --config configs/my_dataset_config.yaml --fold $fold
+done
+
+# 4. Run ensemble inference with TTA for maximum accuracy
+ml-inference --ensemble \
+  runs/my_dataset_fold_0/weights/best.pt \
+  runs/my_dataset_fold_1/weights/best.pt \
+  runs/my_dataset_fold_2/weights/best.pt \
+  runs/my_dataset_fold_3/weights/best.pt \
+  runs/my_dataset_fold_4/weights/best.pt \
+  --tta
+
+# 5. Export best model for deployment
+ml-export \
+  --checkpoint runs/my_dataset_fold_0/weights/best.pt \
+  --comprehensive-validate \
+  --benchmark
+```
+
 ---
 
-## 11. Useful Tips
+## 12. Useful Tips
 
 ### Check Run Directory Structure
 ```bash
