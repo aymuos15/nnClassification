@@ -7,7 +7,7 @@ Command-line arguments override YAML configuration, enabling quick experimentati
 ## How It Works
 
 ```
-1. Load base config from YAML (ml_src/config.yaml)
+1. Load base config from YAML (ml_src/config_template.yaml)
 2. Apply CLI argument overrides
 3. Create run directory based on overrides
 4. Save final config to runs/{run_name}/config.yaml
@@ -232,7 +232,7 @@ ml-train --batch_size 2 --num_epochs 2 --num_workers 0
 
 ```bash
 ml-train \
-  --config ml_src/config.yaml \
+  --config ml_src/config_template.yaml \
   --data_dir /mnt/datasets/imagenet \
   --batch_size 64 \
   --num_workers 8 \
@@ -396,7 +396,7 @@ cat runs/{run_name}/config.yaml
 ml-train --config configs/custom_transforms.yaml
 
 # Option 2: Modify base config temporarily
-# Edit ml_src/config.yaml directly
+# Edit ml_src/config_template.yaml directly
 ```
 
 ---

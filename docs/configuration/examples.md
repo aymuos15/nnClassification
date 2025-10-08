@@ -642,8 +642,8 @@ ml-train --config configs/production.yaml
 ### Option 2: Modify Base Config
 
 ```bash
-# Edit ml_src/config.yaml directly
-nano ml_src/config.yaml
+# Edit ml_src/config_template.yaml directly
+nano ml_src/config_template.yaml
 
 # Paste example content
 

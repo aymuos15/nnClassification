@@ -460,7 +460,7 @@ tensorboard --logdir runs/
 ml-train --lr 0.01 --batch_size 32
 
 # Flow:
-config = load('ml_src/config.yaml')  # lr: 0.001, batch_size: 4
+config = load('ml_src/config_template.yaml')  # lr: 0.001, batch_size: 4
 config['optimizer']['lr'] = 0.01      # Override
 config['training']['batch_size'] = 32 # Override
 run_name = 'batch_32_lr_0.01'        # Generate name

@@ -176,7 +176,7 @@ ml_src/core/network/
 
 **Structure:**
 ```
-ml_src/config.yaml  ←  Base configuration
+ml_src/config_template.yaml  ←  Base configuration
         ↓
 CLI overrides  ←  python train.py --lr 0.01
         ↓

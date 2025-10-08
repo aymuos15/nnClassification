@@ -60,7 +60,7 @@ Transforms control how images are augmented and preprocessed before training. Cu
 - Research experiments with augmentation policies
 
 **Key Topics:**
-- Modifying `get_transforms()` in `ml_src/core/dataset.py`
+- Modifying `get_transforms()` in `ml_src/core/data/datasets.py`
 - Adding torchvision transforms with configuration
 - Implementing custom transform classes
 - Split-specific transforms (train vs. val/test)
@@ -116,8 +116,8 @@ Metrics quantify model performance on validation and test sets. Custom metrics a
 - Per-class and per-sample analysis
 
 **Key Topics:**
-- Defining metric functions in `ml_src/core/metrics.py`
-- Integration with training pipeline in `ml_src/core/trainer.py`
+- Defining metric functions in `ml_src/core/metrics/`
+- Integration with training pipeline in `ml_src/core/trainers/`
 - Saving metrics to files and visualizations
 - Multi-class and binary classification metrics
 - Best practices for metric interpretation
@@ -234,7 +234,7 @@ Beyond specific components, you may need to extend the framework's core function
    - Add configuration parameters as needed
 
 4. **Update Configuration**
-   - Add new parameters to `ml_src/config.yaml`
+   - Add new parameters to `ml_src/config_template.yaml`
    - Document valid values and defaults
    - Consider CLI override support
 
@@ -363,12 +363,12 @@ See extensions in action:
 | Extension Type | Primary File | Registry/Function |
 |---------------|--------------|-------------------|
 | Custom Models | `ml_src/core/network/custom.py` | `MODEL_REGISTRY` |
-| Transforms | `ml_src/core/dataset.py` | `get_transforms()` |
+| Transforms | `ml_src/core/data/datasets.py` | `get_transforms()` |
 | Optimizers | `ml_src/core/optimizer.py` | `get_optimizer()` |
 | Schedulers | `ml_src/core/optimizer.py` | `get_scheduler()` |
 | Loss Functions | `ml_src/core/loss.py` | `get_criterion()` |
-| Metrics | `ml_src/core/metrics.py` | Custom functions |
-| Data Loaders | `ml_src/core/dataset.py` | `get_data_loaders()` |
+| Metrics | `ml_src/core/metrics/` | Custom functions |
+| Data Loaders | `ml_src/core/data/datasets.py` | `get_data_loaders()` |
 
 ### Configuration Sections
 
@@ -422,7 +422,7 @@ MODEL_REGISTRY = {
 
 ### 2. Configure It
 ```yaml
-# ml_src/config.yaml or custom config
+# ml_src/config_template.yaml or custom config
 model:
   type: 'custom'
   custom_architecture: 'my_custom_net'

@@ -345,7 +345,7 @@ model:
 **Procedure:**
 ```bash
 # 1. Update configuration
-# In ml_src/config.yaml:
+# In ml_src/config_template.yaml:
 model:
   num_classes: 10  # Changed from 2
 

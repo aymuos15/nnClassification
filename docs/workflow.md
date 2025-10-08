@@ -344,17 +344,17 @@ ml-export --checkpoint runs/my_run/weights/best.pt
 ```
 Exports PyTorch model to ONNX format for deployment (`runs/my_run/weights/best.onnx`).
 
-### Export with Validation
+### Export with Basic Validation
 ```bash
-ml-export --checkpoint runs/my_run/weights/best.pt --validate
+ml-export --checkpoint runs/my_run/weights/best.pt --validate-basic
 ```
-Validates exported model can be loaded and runs basic forward pass.
+Validates exported model can be loaded and runs basic forward pass with dummy input.
 
 ### Export with Comprehensive Validation
 ```bash
-ml-export --checkpoint runs/my_run/weights/best.pt --comprehensive-validate
+ml-export --checkpoint runs/my_run/weights/best.pt --validate
 ```
-Compares PyTorch vs ONNX outputs on test dataset for accuracy verification.
+Compares PyTorch vs ONNX outputs on test dataset for accuracy verification (requires config in checkpoint).
 
 ### Export with Benchmarking
 ```bash

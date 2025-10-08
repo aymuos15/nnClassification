@@ -4,13 +4,13 @@ Add new evaluation metrics beyond accuracy and confusion matrix.
 
 ## Overview
 
-Metrics are in `ml_src/core/metrics.py`.
+Metrics are in `ml_src/core/metrics/`.
 
 ## Adding New Metric
 
 ### Step 1: Define Metric Function
 
-Edit `ml_src/core/metrics.py`:
+Edit `ml_src/core/metrics/`:
 
 ```python
 def calculate_f1_per_class(true_labels, pred_labels, class_names):
@@ -49,7 +49,7 @@ def save_f1_scores(true_labels, pred_labels, class_names, path):
 
 ### Step 2: Call from trainer.py
 
-Edit `ml_src/core/trainer.py` at end of `train_model()`:
+Edit `ml_src/core/trainers/` at end of `train_model()`:
 
 ```python
 # After existing metrics

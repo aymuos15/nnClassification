@@ -132,7 +132,7 @@ See: [Visualization Reference](reference/visualization.md)
 
 ### Change Model
 ```yaml
-# In ml_src/config.yaml
+# In ml_src/config_template.yaml
 model:
   architecture: 'efficientnet_b0'
 ```

@@ -52,15 +52,20 @@ class MyCustomModel(nn.Module):
 
 ### Step 2: Register Model
 
-Add to `MODEL_REGISTRY` in `ml_src/core/network/custom.py`:
+Add to `MODEL_REGISTRY` inside the `get_custom_model()` function in `ml_src/core/network/custom.py` (around line 172):
 
 ```python
-MODEL_REGISTRY = {
-    'simple_cnn': SimpleCNN,
-    'tiny_net': TinyNet,
-    'my_custom_model': MyCustomModel,  # Add here
-}
+def get_custom_model(model_name, num_classes, input_size=224, device="cpu", **kwargs):
+    # Registry of available custom models
+    MODEL_REGISTRY = {
+        "simple_cnn": SimpleCNN,
+        "tiny_net": TinyNet,
+        "my_custom_model": MyCustomModel,  # Add here
+    }
+    # ... rest of function
 ```
+
+**Note:** The registry is function-scoped, not module-level.
 
 ### Step 3: Use in Config
 

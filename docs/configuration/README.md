@@ -15,7 +15,7 @@ The PyTorch Image Classifier uses a YAML-based configuration system with command
 ## Configuration Loading Flow
 
 ```
-1. Load base config from YAML file (default: ml_src/config.yaml)
+1. Load base config from YAML file (default: ml_src/config_template.yaml)
 2. Override with CLI arguments (if provided)
 3. Create run directory based on overrides
 4. Save final config to run directory (runs/{run_name}/config.yaml)
@@ -24,7 +24,7 @@ The PyTorch Image Classifier uses a YAML-based configuration system with command
 ## Configuration File Locations
 
 ### Default Base Configuration
-**Location:** `ml_src/config.yaml`
+**Location:** `ml_src/config_template.yaml`
 
 This is the default configuration file that contains all standard settings.
 

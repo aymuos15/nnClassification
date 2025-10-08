@@ -78,7 +78,7 @@ ml-inference --checkpoint_path runs/my_run/weights/best.pt
 
 # Run inference with Test-Time Augmentation (TTA)
 ml-inference --checkpoint_path runs/my_run/weights/best.pt --tta
-ml-inference --checkpoint_path runs/my_run/weights/best.pt --tta --tta-augmentations horizontal_flip vertical_flip
+ml-inference --checkpoint_path runs/my_run/weights/best.pt --tta --tta-augmentations horizontal_flip vertical_flip rotate_90 brightness contrast
 
 # Run ensemble inference from multiple folds
 ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt runs/fold_2/weights/best.pt
@@ -117,9 +117,9 @@ ml_src/
     ├── data/               # Dataset handling and analysis
     │   ├── __init__.py     # Data module API
     │   ├── datasets.py     # IndexedImageDataset (index-based loading)
-    │   ├── splitting.py    # Dataset detection utilities
-    │   ├── statistics.py   # Dataset statistics and validation
-    │   └── visualize_stats.py  # Statistics visualization
+    │   ├── detection.py    # Dataset structure detection
+    │   ├── indexing.py     # File indexing utilities
+    │   └── splitting.py    # CV split creation utilities
     ├── loader.py           # DataLoader creation
     ├── network/            # Model architectures
     │   ├── __init__.py     # get_model() API (routes base vs custom)
@@ -192,7 +192,7 @@ ml_src/
 
 ### Data Flow
 
-1. **Dataset Creation** (`core/dataset.py`):
+1. **Dataset Creation** (`core/data/datasets.py`):
    - `get_datasets(config)` → reads index files from `data_dir/splits/`
    - Creates `IndexedImageDataset` for train/val/test splits
    - Test set is shared across all folds
@@ -472,42 +472,14 @@ training:
 - Competitive benchmarks (free accuracy gain)
 - Any scenario where test performance matters
 
-### Dataset Statistics & Validation
+### Dataset Analysis
 
-**What it does:**
-Comprehensive dataset analysis to detect issues before training:
-- Class distribution & imbalance detection (warns if ratio > 3:1)
-- Image statistics (sizes, aspect ratios, color modes)
-- Data quality checks (corrupted files)
-- Automatic warnings and recommendations
+The framework includes dataset detection and indexing utilities:
+- Automatic dataset structure detection (`core/data/detection.py`)
+- File indexing for efficient loading (`core/data/indexing.py`)
+- Index-based cross-validation splits (`core/data/splitting.py`)
 
-**Usage:**
-```python
-from ml_src.core.data import analyze_dataset, generate_statistics_report, generate_all_plots
-
-# Analyze dataset
-stats = analyze_dataset('data/my_dataset/raw', sample_size=500)
-
-# Generate text report
-generate_statistics_report(stats, 'data/my_dataset/splits/statistics.txt')
-
-# Generate visualization plots (class distribution, image sizes)
-generate_all_plots(stats, 'data/my_dataset/splits/statistics/')
-
-# Check for issues
-if stats['imbalance_ratio'] > 3.0:
-    print("⚠️ Dataset is imbalanced - consider focal loss or class weights")
-```
-
-**Output files:**
-- `statistics.txt` - Human-readable report with warnings
-- `statistics/class_distribution.png` - Bar chart of class counts
-- `statistics/image_statistics.png` - Size/aspect ratio histograms
-
-**When to use:**
-- Before training (detect imbalance, corruption, size issues)
-- When configuring training (inform decisions about loss functions, augmentation)
-- For documentation (reproducibility, dataset characteristics)
+These utilities are used automatically by `ml-split` and `ml-init-config` commands.
 
 ### Training a New Dataset
 1. Organize data in `data/{name}/raw/class1/`, `data/{name}/raw/class2/`, etc.

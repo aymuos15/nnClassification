@@ -93,17 +93,12 @@ Export a single trained model to ONNX format:
 
 ```bash
 # Export best checkpoint from a run
-ml-export --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt
+ml-export --checkpoint runs/hymenoptera_base_fold_0/weights/best.pt
 
 # Specify custom output path
 ml-export \
-  --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt \
-  --output_path models/hymenoptera_production.onnx
-
-# Export with custom batch size
-ml-export \
-  --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt \
-  --batch_size 8
+  --checkpoint runs/hymenoptera_base_fold_0/weights/best.pt \
+  --output models/hymenoptera_production.onnx
 ```
 
 **Output:**
@@ -127,13 +122,13 @@ Export multiple checkpoints using glob patterns:
 
 ```bash
 # Export all best checkpoints across folds
-ml-export --pattern "runs/hymenoptera_*/weights/best.pt"
+ml-export --checkpoint "runs/hymenoptera_*/weights/best.pt"
 
 # Export all checkpoints (best and last) from a specific run
-ml-export --pattern "runs/hymenoptera_base_fold_0/weights/*.pt"
+ml-export --checkpoint "runs/hymenoptera_base_fold_0/weights/*.pt"
 
 # Export from multiple experiments
-ml-export --pattern "runs/experiment_*/weights/best.pt"
+ml-export --checkpoint "runs/experiment_*/weights/best.pt"
 ```
 
 **Output:**
@@ -147,22 +142,31 @@ ml-export --pattern "runs/experiment_*/weights/best.pt"
 2025-10-06 10:35:15 | SUCCESS  | ✓ Successfully exported 5/5 models
 ```
 
-### Validation Only
+### Validation
 
-Validate an existing ONNX export without re-exporting:
+Validate ONNX export with comprehensive testing:
 
 ```bash
-# Validate ONNX model against PyTorch checkpoint
+# Export with comprehensive validation (uses test dataset)
 ml-export \
-  --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt \
-  --onnx_path runs/hymenoptera_base_fold_0/weights/best.onnx \
-  --validate_only
+  --checkpoint runs/hymenoptera_base_fold_0/weights/best.pt \
+  --validate
+
+# Export with basic validation (uses dummy input, faster)
+ml-export \
+  --checkpoint runs/hymenoptera_base_fold_0/weights/best.pt \
+  --validate-basic
+
+# Export with benchmarking
+ml-export \
+  --checkpoint runs/hymenoptera_base_fold_0/weights/best.pt \
+  --benchmark
 ```
 
-**Use cases:**
-- Verify ONNX model after manual modification
-- Re-check validation after ONNX Runtime update
-- Confirm export integrity before deployment
+**Validation types:**
+- `--validate`: Comprehensive validation using test dataset (requires config in checkpoint)
+- `--validate-basic`: Basic validation with dummy input (faster, no dataset required)
+- `--benchmark`: Measure inference speed (PyTorch vs ONNX)
 
 ### Export Options
 
@@ -171,30 +175,36 @@ ml-export \
 ```bash
 ml-export [OPTIONS]
 
-Required (one of):
-  --checkpoint_path PATH      Path to PyTorch checkpoint (.pt file)
-  --pattern GLOB              Glob pattern to match multiple checkpoints
+Required:
+  --checkpoint PATH           Path to PyTorch checkpoint (.pt file)
+                              Can use glob patterns for batch export
+                              Examples:
+                                runs/fold_0/weights/best.pt
+                                "runs/*/weights/best.pt"
 
 Optional:
-  --output_path PATH          Custom output path for ONNX model
+  --output PATH               Custom output path for ONNX model
                               (default: same directory as checkpoint, .onnx extension)
 
-  --batch_size INT            Batch size for export (default: 1)
-                              Use higher values if deploying with batching
+  --opset-version INT         ONNX opset version (default: auto-detected from checkpoint)
+                              Use 11-14 for broad compatibility
 
-  --opset_version INT         ONNX opset version (default: 14)
-                              Use 11+ for broad compatibility
+  --input-size H W            Input image size (default: auto-detected from checkpoint)
+                              Example: --input-size 224 224
 
-  --validate                  Run validation after export (default: True)
-  --no-validate               Skip validation (faster, use for debugging)
+  --validate                  Run comprehensive validation using test dataset
+                              (requires config in checkpoint)
 
-  --validate_only             Only validate existing ONNX file, don't export
-  --onnx_path PATH            Path to ONNX model for validation
+  --validate-basic            Run basic validation with dummy input
+                              (faster, no dataset required)
 
-  --dynamic_axes              Enable dynamic batch/sequence dimensions
-                              Required for variable-size inputs
+  --num-val-batches INT       Number of validation batches to use
+                              (default: 10, only for --validate)
 
-  --verbose                   Show detailed ONNX export logs
+  --benchmark                 Measure inference speed (PyTorch vs ONNX)
+
+  --use-ema                   Use EMA weights if available in checkpoint
+                              (default: use regular weights)
 ```
 
 ---
@@ -426,7 +436,7 @@ RuntimeError: ONNX export failed: Unsupported operator 'aten::some_op'
 **Solutions:**
 1. **Update ONNX opset version:**
    ```bash
-   ml-export --checkpoint_path model.pt --opset_version 15
+   ml-export --checkpoint model.pt --opset-version 15
    ```
 
 2. **Replace unsupported operations** in custom models:
@@ -438,30 +448,27 @@ RuntimeError: ONNX export failed: Unsupported operator 'aten::some_op'
    - Remove complex custom layers
    - Replace dynamic control flow with static operations
 
-### Dynamic Shape Issues
+### Input Size Issues
 
 **Error:**
 ```
-RuntimeError: Exporting model with dynamic axes failed
+RuntimeError: Input size mismatch during export
 ```
 
 **Solution:**
 ```bash
-# Export with dynamic batch dimension
+# Export with specific input size
 ml-export \
-  --checkpoint_path model.pt \
-  --dynamic_axes \
-  --batch_size 1
+  --checkpoint model.pt \
+  --input-size 224 224
 ```
 
-**When dynamic shapes are needed:**
-- Variable batch sizes during inference
-- Sequence models with variable length
-- Multi-scale image processing
+**When to specify input size:**
+- Model was trained with non-standard image size
+- Auto-detection fails from checkpoint
+- Deploying to fixed-size input environment
 
-**When to avoid:**
-- Fixed batch size known at deployment time
-- Maximum performance required (static shapes optimize better)
+**Note:** The framework automatically detects input size from the checkpoint in most cases.
 
 ### Validation Failures
 
@@ -542,10 +549,10 @@ ml-export \
    session = ort.InferenceSession("model.onnx", sess_options, providers=providers)
    ```
 
-3. **Batch inference:**
+3. **Use benchmarking to verify:**
    ```bash
-   # Export with larger batch size
-   ml-export --checkpoint_path model.pt --batch_size 8
+   # Benchmark to compare PyTorch vs ONNX speed
+   ml-export --checkpoint model.pt --benchmark
    ```
 
 4. **Hardware-specific optimization:**
@@ -566,9 +573,9 @@ ml-export \
 
 ### During Export
 
-1. ✅ **Match deployment batch size** - Export with expected inference batch size
-2. ✅ **Enable validation** - Always validate unless debugging
-3. ✅ **Use verbose mode for debugging** - `--verbose` shows ONNX export details
+1. ✅ **Enable validation** - Use `--validate` for comprehensive testing
+2. ✅ **Benchmark performance** - Use `--benchmark` to measure speed improvements
+3. ✅ **Use EMA weights if available** - Add `--use-ema` for better accuracy
 4. ✅ **Export all folds** - Keep ONNX versions of all cross-validation models
 
 ### After Export
@@ -598,19 +605,13 @@ ml-train --config configs/hymenoptera_config.yaml --fold 0
 # 2. Validate training results
 ml-inference --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt
 
-# 3. Export to ONNX
+# 3. Export to ONNX with validation and benchmarking
 ml-export \
-  --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt \
-  --batch_size 4 \
-  --verbose
+  --checkpoint runs/hymenoptera_base_fold_0/weights/best.pt \
+  --validate \
+  --benchmark
 
-# 4. Verify export
-ml-export \
-  --checkpoint_path runs/hymenoptera_base_fold_0/weights/best.pt \
-  --onnx_path runs/hymenoptera_base_fold_0/weights/best.onnx \
-  --validate_only
-
-# 5. Copy to deployment location
+# 4. Copy to deployment location
 mkdir -p deployment/models
 cp runs/hymenoptera_base_fold_0/weights/best.onnx deployment/models/hymenoptera_v1.onnx
 cp runs/hymenoptera_base_fold_0/config.yaml deployment/models/hymenoptera_v1_config.yaml
@@ -629,11 +630,11 @@ Export best models from all folds:
 ```bash
 # Export all folds
 for fold in {0..4}; do
-  ml-export --checkpoint_path runs/hymenoptera_base_fold_$fold/weights/best.pt
+  ml-export --checkpoint runs/hymenoptera_base_fold_$fold/weights/best.pt
 done
 
 # Or use batch export
-ml-export --pattern "runs/hymenoptera_base_fold_*/weights/best.pt"
+ml-export --checkpoint "runs/hymenoptera_base_fold_*/weights/best.pt"
 
 # Choose best fold for deployment
 # (based on validation metrics from training)
@@ -664,11 +665,12 @@ cp runs/hymenoptera_base_fold_2/weights/best.onnx deployment/production_model.on
 
 **Ready to export?**
 ```bash
-# Export your trained model
-ml-export --checkpoint_path runs/my_model_fold_0/weights/best.pt
+# Export your trained model with validation
+ml-export --checkpoint runs/my_model_fold_0/weights/best.pt --validate
 
-# Validate the export
+# Or with comprehensive validation and benchmarking
 ml-export \
-  --checkpoint_path runs/my_model_fold_0/weights/best.pt \
-  --validate_only
+  --checkpoint runs/my_model_fold_0/weights/best.pt \
+  --validate \
+  --benchmark
 ```

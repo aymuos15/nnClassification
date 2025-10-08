@@ -204,7 +204,7 @@ Epoch 25: train_loss=0.054, val_loss=0.162  # Overfitting! (stop)
    - Use 20-30 epochs initially
    - Check if converged, extend if needed
 
-2. **Use early stopping** (see [Early Stopping](#early-stopping))
+2. **Use early stopping** (see [Early Stopping](#early_stopping))
    - Automatically stop when validation plateaus
    - Prevents wasting compute
 

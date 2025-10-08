@@ -4,11 +4,11 @@ Add new data augmentation techniques.
 
 ## Overview
 
-Transforms are defined in `ml_src/core/dataset.py::get_transforms()`.
+Transforms are defined in `ml_src/core/data/datasets.py::get_transforms()`.
 
 ## Step 1: Update get_transforms()
 
-Edit `ml_src/core/dataset.py`:
+Edit `ml_src/core/data/datasets.py`:
 
 ```python
 from torchvision import transforms as T

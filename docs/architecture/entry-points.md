@@ -215,7 +215,7 @@ Orchestrates the complete training pipeline from configuration to final evaluati
 
 ```bash
 ml-train \
-  --config ml_src/config.yaml \          # Config file path
+  --config ml_src/config_template.yaml \          # Config file path
 --resume runs/hymenoptera_base_fold_0/last.pt \           # Resume from checkpoint
   --data_dir data/hymenoptera_data \     # Override data directory
   --batch_size 16 \                      # Override batch size

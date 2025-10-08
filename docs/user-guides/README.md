@@ -161,10 +161,10 @@ ml-train --fold 2 --num_epochs 100
 ### Inference
 ```bash
 # Evaluate best checkpoint
-ml-inference --run_dir runs/my_dataset_base_fold_0 --checkpoint best.pt
+ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/best.pt
 
 # Evaluate last checkpoint
-ml-inference --run_dir runs/my_dataset_base_fold_0 --checkpoint last.pt
+ml-inference --checkpoint_path runs/my_dataset_base_fold_0/weights/last.pt
 ```
 
 ### Resuming
@@ -288,7 +288,7 @@ ml-train --fold 3
 ml-train --fold 4
 ```
 
-See: [Training Guide](training.md#cross-validation-workflow)
+See: [Training Guide](training.md#3-cross-validation-training)
 
 ### Can I change hyperparameters when resuming?
 
@@ -297,7 +297,7 @@ Yes! You can override most hyperparameters:
 ml-train --resume runs/base/last.pt --lr 0.0001 --num_epochs 100
 ```
 
-See: [Resuming Training Guide](resuming-training.md#fine-tune-further)
+See: [Resuming Training Guide](resuming-training.md#3-fine-tune-further)
 
 ### How do I monitor training in real-time?
 
@@ -327,7 +327,7 @@ runs/my_dataset_base_fold_0/
 └── config.yaml      # Exact config used
 ```
 
-See: [Training Guide](training.md#understanding-outputs)
+See: [Training Guide](training.md#understanding-output)
 
 ---
 
@@ -336,7 +336,7 @@ See: [Training Guide](training.md#understanding-outputs)
 ### 1. Always Use Version Control
 ```bash
 # Track config changes
-git add ml_src/config.yaml
+git add ml_src/config_template.yaml
 git commit -m "Update learning rate for experiment 5"
 ```
 

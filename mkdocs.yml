@@ -71,6 +71,7 @@ nav:
     - Data Configuration: configuration/data.md
     - Model Configuration: configuration/models.md
     - Training Configuration: configuration/training.md
+    - Inference Configuration: configuration/inference.md
     - Transforms: configuration/transforms.md
     - Optimizer & Scheduler: configuration/optimizer-scheduler.md
     - Reproducibility: configuration/reproducibility.md
@@ -82,6 +83,8 @@ nav:
     - Training: user-guides/training.md
     - Advanced Training: user-guides/advanced-training.md
     - Inference: user-guides/inference.md
+    - Test-Time Augmentation: user-guides/test-time-augmentation.md
+    - Ensemble Inference: user-guides/ensemble-inference.md
     - Resuming Training: user-guides/resuming-training.md
     - Monitoring: user-guides/monitoring.md
     - Hyperparameter Tuning: user-guides/hyperparameter-tuning.md
