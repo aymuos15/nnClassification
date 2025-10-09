@@ -40,6 +40,7 @@ Practical workflows and how-tos:
 
 - **[Training](user-guides/training.md)** - Training workflows & trainer selection
 - **[Advanced Training](user-guides/advanced-training.md)** - Mixed precision, multi-GPU, DP
+- **[Federated Learning](user-guides/federated-learning.md)** - Distributed training with Flower (Optional)
 - **[Inference](user-guides/inference.md)** - Running evaluation & inference strategies
 - **[Test-Time Augmentation](user-guides/test-time-augmentation.md)** - TTA for improved accuracy
 - **[Ensemble Inference](user-guides/ensemble-inference.md)** - Combining multiple models
