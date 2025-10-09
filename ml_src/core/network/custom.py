@@ -118,7 +118,7 @@ class TinyNet(nn.Module):
 
     def __init__(self, num_classes, input_size=224, **kwargs):
         super().__init__()
-        
+
         # Ignore extra kwargs (like dropout) for compatibility
         if kwargs:
             logger.debug(f"TinyNet ignoring extra arguments: {list(kwargs.keys())}")
@@ -141,6 +141,141 @@ class TinyNet(nn.Module):
         x = torch.flatten(x, 1)
         x = self.fc(x)
         return x
+
+
+class SimpleUNet(nn.Module):
+    """
+    Simple U-Net for semantic segmentation.
+
+    Standard U-Net architecture with encoder-decoder structure and skip connections.
+    Suitable for binary and multi-class segmentation tasks.
+
+    Architecture:
+        - Encoder: 4 levels (double conv + batch norm + ReLU + maxpool)
+        - Bottleneck: double conv + batch norm + ReLU
+        - Decoder: 4 levels (transpose conv + skip connection + double conv)
+        - Output: 1x1 conv to num_classes channels
+
+    Args:
+        num_classes: Number of output classes (including background)
+        in_channels: Number of input channels (default: 3 for RGB)
+        base_features: Base number of features in first layer (default: 64)
+
+    Input: [B, in_channels, H, W]
+    Output: [B, num_classes, H, W] (logits, per-pixel classification)
+
+    Example:
+        >>> model = SimpleUNet(num_classes=3, in_channels=3, base_features=64)
+        >>> x = torch.randn(2, 3, 256, 256)
+        >>> out = model(x)
+        >>> out.shape
+        torch.Size([2, 3, 256, 256])
+    """
+
+    def __init__(self, num_classes, in_channels=3, base_features=64, **kwargs):
+        super().__init__()
+
+        # Ignore extra kwargs for compatibility
+        if kwargs:
+            logger.debug(f"SimpleUNet ignoring extra arguments: {list(kwargs.keys())}")
+
+        # Encoder (downsampling path)
+        self.enc1 = self._double_conv(in_channels, base_features)
+        self.pool1 = nn.MaxPool2d(2)
+
+        self.enc2 = self._double_conv(base_features, base_features * 2)
+        self.pool2 = nn.MaxPool2d(2)
+
+        self.enc3 = self._double_conv(base_features * 2, base_features * 4)
+        self.pool3 = nn.MaxPool2d(2)
+
+        self.enc4 = self._double_conv(base_features * 4, base_features * 8)
+        self.pool4 = nn.MaxPool2d(2)
+
+        # Bottleneck
+        self.bottleneck = self._double_conv(base_features * 8, base_features * 16)
+
+        # Decoder (upsampling path)
+        self.upconv4 = nn.ConvTranspose2d(base_features * 16, base_features * 8, 2, stride=2)
+        self.dec4 = self._double_conv(base_features * 16, base_features * 8)
+
+        self.upconv3 = nn.ConvTranspose2d(base_features * 8, base_features * 4, 2, stride=2)
+        self.dec3 = self._double_conv(base_features * 8, base_features * 4)
+
+        self.upconv2 = nn.ConvTranspose2d(base_features * 4, base_features * 2, 2, stride=2)
+        self.dec2 = self._double_conv(base_features * 4, base_features * 2)
+
+        self.upconv1 = nn.ConvTranspose2d(base_features * 2, base_features, 2, stride=2)
+        self.dec1 = self._double_conv(base_features * 2, base_features)
+
+        # Output layer
+        self.out = nn.Conv2d(base_features, num_classes, kernel_size=1)
+
+        logger.info(
+            f"Created SimpleUNet: num_classes={num_classes}, "
+            f"in_channels={in_channels}, base_features={base_features}"
+        )
+
+    def _double_conv(self, in_channels, out_channels):
+        """
+        Double convolution block: Conv-BN-ReLU-Conv-BN-ReLU.
+
+        Args:
+            in_channels: Number of input channels
+            out_channels: Number of output channels
+
+        Returns:
+            Sequential module with double conv + batch norm + ReLU
+        """
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        """
+        Forward pass through U-Net.
+
+        Args:
+            x: Input tensor [B, in_channels, H, W]
+
+        Returns:
+            Output logits [B, num_classes, H, W]
+        """
+        # Encoder with skip connections
+        enc1 = self.enc1(x)  # [B, 64, H, W]
+        enc2 = self.enc2(self.pool1(enc1))  # [B, 128, H/2, W/2]
+        enc3 = self.enc3(self.pool2(enc2))  # [B, 256, H/4, W/4]
+        enc4 = self.enc4(self.pool3(enc3))  # [B, 512, H/8, W/8]
+
+        # Bottleneck
+        bottleneck = self.bottleneck(self.pool4(enc4))  # [B, 1024, H/16, W/16]
+
+        # Decoder with skip connections
+        dec4 = self.upconv4(bottleneck)  # [B, 512, H/8, W/8]
+        dec4 = torch.cat([dec4, enc4], dim=1)  # Skip connection
+        dec4 = self.dec4(dec4)
+
+        dec3 = self.upconv3(dec4)  # [B, 256, H/4, W/4]
+        dec3 = torch.cat([dec3, enc3], dim=1)
+        dec3 = self.dec3(dec3)
+
+        dec2 = self.upconv2(dec3)  # [B, 128, H/2, W/2]
+        dec2 = torch.cat([dec2, enc2], dim=1)
+        dec2 = self.dec2(dec2)
+
+        dec1 = self.upconv1(dec2)  # [B, 64, H, W]
+        dec1 = torch.cat([dec1, enc1], dim=1)
+        dec1 = self.dec1(dec1)
+
+        # Output
+        out = self.out(dec1)  # [B, num_classes, H, W]
+
+        return out
 
 
 def get_custom_model(model_name, num_classes, input_size=224, device="cpu", **kwargs):
@@ -172,6 +307,7 @@ def get_custom_model(model_name, num_classes, input_size=224, device="cpu", **kw
     MODEL_REGISTRY = {
         "simple_cnn": SimpleCNN,
         "tiny_net": TinyNet,
+        "simple_unet": SimpleUNet,
         # Add your custom models here:
         # 'my_model': MyCustomModel,
     }

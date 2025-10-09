@@ -20,7 +20,7 @@ from ml_src.core.config import load_config
 from ml_src.core.data import get_datasets
 from ml_src.core.loader import get_dataloaders
 from ml_src.core.logging import setup_logging
-from ml_src.core.loss import get_criterion
+from ml_src.core.losses import get_criterion
 from ml_src.core.lr_finder import LRFinder, plot_lr_finder
 from ml_src.core.network import get_model
 from ml_src.core.seeding import set_seed

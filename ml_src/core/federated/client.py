@@ -9,7 +9,7 @@ from loguru import logger
 
 from ml_src.core.data.datasets import get_datasets
 from ml_src.core.loader import get_dataloaders, get_dataset_sizes
-from ml_src.core.loss import get_criterion
+from ml_src.core.losses import get_criterion
 from ml_src.core.network import get_model
 from ml_src.core.optimizer import get_optimizer, get_scheduler
 from ml_src.core.trainers import get_trainer

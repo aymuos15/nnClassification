@@ -15,7 +15,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from ml_src.core.checkpointing import load_checkpoint, save_checkpoint
-from ml_src.core.loss import get_criterion
+from ml_src.core.losses import get_criterion
 from ml_src.core.trainers import get_trainer
 from ml_src.core.trainers.base import BaseTrainer
 from ml_src.core.trainers.mixed_precision import MixedPrecisionTrainer

@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from ml_src.core.loss import get_criterion
+from ml_src.core.losses import get_criterion
 from ml_src.core.trainers import get_trainer
 
 

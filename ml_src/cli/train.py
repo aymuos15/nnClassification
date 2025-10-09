@@ -16,7 +16,7 @@ from ml_src.core.config import load_config, override_config
 from ml_src.core.data import get_class_names, get_datasets
 from ml_src.core.loader import get_dataloaders, get_dataset_sizes
 from ml_src.core.logging import setup_logging
-from ml_src.core.loss import get_criterion
+from ml_src.core.losses import get_criterion
 from ml_src.core.metrics import (
     get_classification_report_str,
     log_confusion_matrix_to_tensorboard,

@@ -13,7 +13,7 @@ from ml_src.core.config import load_config, override_config
 from ml_src.core.data import get_class_names, get_datasets
 from ml_src.core.loader import get_dataloaders, get_dataset_sizes
 from ml_src.core.logging import setup_logging
-from ml_src.core.loss import get_criterion
+from ml_src.core.losses import get_criterion
 from ml_src.core.network import get_model
 from ml_src.core.optimizer import get_optimizer, get_scheduler
 from ml_src.core.seeding import set_seed

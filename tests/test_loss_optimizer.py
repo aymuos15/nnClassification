@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 
-from ml_src.core.loss import get_criterion
+from ml_src.core.losses import get_criterion
 from ml_src.core.optimizer import get_optimizer, get_scheduler
 
 
