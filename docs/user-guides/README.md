@@ -8,15 +8,17 @@ These guides complement the unified workflow with focused tips for specific stag
 
 | Guide | Focus | Notes |
 | --- | --- | --- |
-| [Training](training.md) | Day-to-day training tips & overrides | Pair with Workflow Step 6 |
+| [Training](training.md) | Day-to-day training tips & overrides | Pair with Workflow Step 6 |
 | [Advanced Training](advanced-training.md) | Mixed precision, Accelerate, DP trainers | Use when you need specialised trainers |
-| [Monitoring](monitoring.md) | TensorBoard & log inspection | Complements Workflow Step 7 |
-| [Hyperparameter Tuning](hyperparameter-tuning.md) | Manual & Optuna workflows | Expands on Workflow Step 5 |
-| [Inference](inference.md) | Strategy comparison (standard, TTA, ensemble) | Ties into Workflow Step 8 |
+| [Federated Learning](federated-learning.md) | Distributed training with Flower | Optional: multi-client, privacy-preserving FL |
+| [Monitoring](monitoring.md) | TensorBoard & log inspection | Complements Workflow Step 7 |
+| [Hyperparameter Tuning](hyperparameter-tuning.md) | Manual & Optuna workflows | Expands on Workflow Step 5 |
+| [Inference](inference.md) | Strategy comparison (standard, TTA, ensemble) | Ties into Workflow Step 8 |
 | [Test-Time Augmentation](test-time-augmentation.md) | Tune augmentation sets & aggregation | Optional add-on for inference |
 | [Ensemble Inference](ensemble-inference.md) | Weighting strategies & fold management | Optional add-on for inference |
-| [Model Export](model-export.md) | ONNX export validation & optimisation | Workflow Step 9 |
+| [Model Export](model-export.md) | ONNX export validation & optimisation | Workflow Step 9 |
 | [Resuming Training](resuming-training.md) | Continue or extend existing runs | Quick reference during training |
+| [LR Finder](lr-finder.md) | Find optimal learning rates | Run before training for LR tuning |
 
 ---
 
@@ -25,5 +27,6 @@ These guides complement the unified workflow with focused tips for specific stag
 1. **New users** → Training → Monitoring → Inference → (optional) Tuning.
 2. **Performance focus** → Advanced Training → Hyperparameter Tuning → Ensemble/TTA.
 3. **Deployment** → Inference → Model Export.
+4. **Federated/Privacy** → Federated Learning → Advanced Training (DP) → Monitoring.
 
 Each guide now links back to the relevant workflow step to avoid duplicate walkthroughs.

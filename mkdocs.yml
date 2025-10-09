@@ -82,6 +82,7 @@ nav:
     - Overview: user-guides/README.md
     - Training: user-guides/training.md
     - Advanced Training: user-guides/advanced-training.md
+    - Federated Learning: user-guides/federated-learning.md
     - Inference: user-guides/inference.md
     - Test-Time Augmentation: user-guides/test-time-augmentation.md
     - Ensemble Inference: user-guides/ensemble-inference.md

@@ -105,15 +105,24 @@ ml-visualise --mode search --study-name my_study
 ml_src/
 ├── cli/                    # CLI entry points (installed as console scripts)
 │   ├── init_config.py      # ml-init-config: Generate dataset configs
-│   ├── splitting.py        # ml-split: CV split generator
+│   ├── splitting.py        # ml-split: CV split generator (now supports --federated)
 │   ├── lr_finder.py        # ml-lr-finder: Learning rate range test
 │   ├── train.py            # ml-train: Main training orchestrator (uses get_trainer)
 │   ├── inference.py        # ml-inference: Test/inference runner
 │   ├── export.py           # ml-export: ONNX model export
 │   ├── visualise.py        # ml-visualise: TensorBoard + search visualization
-│   └── search.py           # ml-search: Hyperparameter optimization with Optuna
+│   ├── search.py           # ml-search: Hyperparameter optimization with Optuna
+│   ├── fl_server.py        # ml-fl-server: Federated learning server
+│   ├── fl_client.py        # ml-fl-client: Federated learning client
+│   └── fl_run.py           # ml-fl-run: Unified FL launcher (simulation/deployment)
 │
 └── core/                   # Reusable ML components (no CLI dependencies)
+    ├── federated/          # Federated learning with Flower
+    │   ├── __init__.py     # FL module API
+    │   ├── client.py       # FlowerClient wrapper (composes with trainers)
+    │   ├── server.py       # Server and strategy creation
+    │   ├── strategies.py   # FL strategy utilities
+    │   └── partitioning.py # Data partitioning (IID, non-IID, label-skew)
     ├── data/               # Dataset handling and analysis
     │   ├── __init__.py     # Data module API
     │   ├── datasets.py     # IndexedImageDataset (index-based loading)
@@ -725,6 +734,357 @@ search:
 
 See config_template.yaml for full search configuration options.
 
+### Federated Learning (Optional)
+
+**What is Federated Learning?**
+Federated Learning (FL) enables training models across multiple decentralized devices/clients without centralizing data. Each client trains locally on its private data, and only model updates (not data) are shared with a central server for aggregation.
+
+**Installation:**
+```bash
+uv pip install -e ".[flower]"
+```
+
+**Key Concept: Composition Over Inheritance**
+The FL implementation wraps existing trainers (standard, mixed_precision, dp, accelerate) in Flower clients. This means:
+- Each client can use a different trainer type based on capabilities
+- Hospital 1: `standard` trainer (CPU)
+- Hospital 2: `dp` trainer (privacy-sensitive data)
+- Hospital 3: `mixed_precision` trainer (GPU available)
+- All participate in the same federation!
+
+---
+
+#### **Quick Start: Simulation Mode**
+
+Simulation mode runs all clients on one machine for testing:
+
+```bash
+# 1. Prepare federated data splits
+ml-split --raw_data data/medical_images/raw --federated --num-clients 10 --partition-strategy non-iid
+
+# 2. Create federated config (use template)
+cp ml_src/federated_config_template.yaml configs/my_fl_experiment.yaml
+# Edit configs/my_fl_experiment.yaml as needed
+
+# 3. Run federated training (ONE command!)
+ml-fl-run --config configs/my_fl_experiment.yaml
+
+# 4. Monitor with TensorBoard
+tensorboard --logdir runs/simulation/
+```
+
+**Output:**
+- `runs/simulation/fl_client_0/` - Client 0 logs and checkpoints
+- `runs/simulation/fl_client_1/` - Client 1 logs and checkpoints
+- ... (one directory per client)
+
+---
+
+#### **Data Partitioning Strategies**
+
+```bash
+# IID (uniform): Each client gets equal, random data
+ml-split --raw_data data/my_dataset/raw --federated --num-clients 10 --partition-strategy iid
+
+# Non-IID (Dirichlet): Realistic heterogeneous distributions
+ml-split --raw_data data/my_dataset/raw --federated --num-clients 10 \\
+  --partition-strategy non-iid --alpha 0.5
+# alpha: 0.1 (very heterogeneous), 0.5 (moderate), 10.0 (nearly IID)
+
+# Label-Skew: Each client sees only subset of classes
+ml-split --raw_data data/my_dataset/raw --federated --num-clients 5 \\
+  --partition-strategy label-skew --classes-per-client 2
+```
+
+**Output structure:**
+```
+data/my_dataset/splits/
+├── client_0_train.txt  # Client 0's training data
+├── client_0_val.txt    # Client 0's validation data
+├── client_1_train.txt  # Client 1's training data
+├── client_1_val.txt    # Client 1's validation data
+...
+└── test.txt            # Shared global test set (all clients)
+```
+
+---
+
+#### **Configuration: Heterogeneous Clients**
+
+**Simulation mode** (profiles for client groups):
+
+```yaml
+federated:
+  mode: 'simulation'
+
+  server:
+    strategy: 'FedAvg'  # or FedProx, FedAdam, FedAdagrad
+    num_rounds: 100
+    strategy_config:
+      fraction_fit: 0.8        # Use 80% of clients per round
+      min_fit_clients: 8
+      min_available_clients: 10
+
+  clients:
+    num_clients: 10
+
+    # Heterogeneous client profiles
+    profiles:
+      # Clients 0-5: Standard GPU training
+      - id: [0, 1, 2, 3, 4, 5]
+        trainer_type: 'standard'
+        batch_size: 32
+
+      # Clients 6-7: Mixed precision (faster)
+      - id: [6, 7]
+        trainer_type: 'mixed_precision'
+        batch_size: 64
+
+      # Client 8: Privacy-sensitive (uses DP)
+      - id: [8]
+        trainer_type: 'dp'
+        batch_size: 16
+        dp:
+          noise_multiplier: 1.1
+          max_grad_norm: 1.0
+          target_epsilon: 3.0
+
+      # Client 9: CPU only
+      - id: [9]
+        trainer_type: 'standard'
+        device: 'cpu'
+        batch_size: 16
+
+  partitioning:
+    strategy: 'non-iid'
+    alpha: 0.5
+```
+
+---
+
+#### **Federated Learning Strategies**
+
+**FedAvg** (default): Federated Averaging, standard FL
+```yaml
+server:
+  strategy: 'FedAvg'
+```
+
+**FedProx**: Handles heterogeneous clients better (different compute/data)
+```yaml
+server:
+  strategy: 'FedProx'
+  strategy_config:
+    proximal_mu: 0.01  # Regularization term
+```
+
+**FedAdam**: Adaptive optimizer on server side
+```yaml
+server:
+  strategy: 'FedAdam'
+  strategy_config:
+    eta: 0.01      # Server learning rate
+    beta_1: 0.9    # First moment decay
+    beta_2: 0.99   # Second moment decay
+```
+
+**FedAdagrad**: Adagrad-style server optimizer
+```yaml
+server:
+  strategy: 'FedAdagrad'
+  strategy_config:
+    eta: 0.01  # Server learning rate
+```
+
+---
+
+#### **Deployment Mode: Real Distributed Setup**
+
+For production across multiple machines:
+
+**Step 1: Update config for deployment mode**
+```yaml
+federated:
+  mode: 'deployment'
+
+  server:
+    address: '10.0.0.1:8080'  # Server IP and port
+    strategy: 'FedAvg'
+    num_rounds: 200
+
+  clients:
+    manifest:
+      - id: 0
+        config_override: 'configs/client_overrides/hospital_1.yaml'
+      - id: 1
+        config_override: 'configs/client_overrides/hospital_2_dp.yaml'
+      - id: 2
+        config_override: 'configs/client_overrides/hospital_3.yaml'
+```
+
+**Step 2: Create client override configs**
+```yaml
+# configs/client_overrides/hospital_2_dp.yaml
+training:
+  trainer_type: 'dp'
+  batch_size: 16
+  dp:
+    noise_multiplier: 1.1
+    max_grad_norm: 1.0
+    target_epsilon: 3.0
+    target_delta: 1e-5
+```
+
+**Step 3: Launch server (Machine 1)**
+```bash
+ml-fl-server --config configs/my_fl_deployment.yaml
+```
+
+**Step 4: Launch clients (Machines 2-N)**
+```bash
+# Hospital 1 (Machine 2)
+ml-fl-client --config configs/my_fl_deployment.yaml --client-id 0
+
+# Hospital 2 (Machine 3)
+ml-fl-client --config configs/my_fl_deployment.yaml --client-id 1
+
+# Hospital 3 (Machine 4)
+ml-fl-client --config configs/my_fl_deployment.yaml --client-id 2
+```
+
+**Alternative: Automated deployment (all on one machine)**
+```bash
+# Automatically starts server + all clients
+ml-fl-run --config configs/my_fl_deployment.yaml --mode deployment
+```
+
+---
+
+#### **Federated Learning + Differential Privacy**
+
+Achieve privacy-preserving federated learning by combining FL with DP:
+
+```yaml
+federated:
+  clients:
+    profiles:
+      # Privacy-sensitive clients use DP trainer
+      - id: [0, 1, 2]
+        trainer_type: 'dp'
+        dp:
+          noise_multiplier: 1.1
+          max_grad_norm: 1.0
+          target_epsilon: 3.0    # Strong privacy guarantee
+          target_delta: 1e-5
+
+      # Non-sensitive clients use standard
+      - id: [3, 4]
+        trainer_type: 'standard'
+```
+
+**Result:** Formal privacy guarantees for sensitive client data, while non-sensitive clients train faster!
+
+---
+
+#### **Federated Learning + Optuna**
+
+**Recommended:** Run hyperparameter search **before** FL training (not during):
+
+```bash
+# 1. Server-side global search (recommended)
+ml-search --config configs/federated_base.yaml --n-trials 50
+
+# 2. Use best config for FL
+ml-fl-run --config runs/optuna_studies/my_study/best_config.yaml
+```
+
+**Alternative:** Per-client local search (for heterogeneous clients):
+```bash
+# Each client finds its own optimal hyperparameters
+ml-search --config configs/client_0_base.yaml --n-trials 20
+ml-search --config configs/client_1_base.yaml --n-trials 20
+
+# Then join federation with optimized configs
+ml-fl-run --config configs/federated_deployment.yaml
+```
+
+**NOT recommended:** Running Optuna during FL rounds (breaks synchronization, huge overhead)
+
+---
+
+#### **Monitoring Federated Training**
+
+Each client logs to its own directory with TensorBoard:
+
+```bash
+# View client 0 training
+tensorboard --logdir runs/simulation/fl_client_0/tensorboard
+
+# View all clients (combined)
+tensorboard --logdir runs/simulation/
+
+# Server-side metrics logged by Flower
+# Look for aggregated metrics in console output
+```
+
+---
+
+#### **CLI Reference**
+
+```bash
+# Simulation mode (all clients on one machine)
+ml-fl-run --config configs/federated_config.yaml
+ml-fl-run --config configs/federated_config.yaml --num-rounds 200
+
+# Deployment mode (automated server + clients)
+ml-fl-run --config configs/federated_config.yaml --mode deployment
+
+# Manual server launch
+ml-fl-server --config configs/federated_config.yaml
+ml-fl-server --config configs/federated_config.yaml --server-address 0.0.0.0:9000
+
+# Manual client launch
+ml-fl-client --config configs/federated_config.yaml --client-id 0
+ml-fl-client --config configs/federated_config.yaml --client-id 1 --trainer-type dp
+```
+
+---
+
+#### **When to Use Federated Learning**
+
+**Good use cases:**
+- ✅ Medical imaging across hospitals (data can't leave premises)
+- ✅ Mobile devices (smartphones, IoT) training personal models
+- ✅ Financial data across banks (regulatory constraints)
+- ✅ Cross-organization collaboration without data sharing
+
+**Not recommended:**
+- ❌ Single organization with centralized data access
+- ❌ Small datasets (< 1000 images total)
+- ❌ When centralized training is feasible and faster
+
+---
+
+#### **Performance Considerations**
+
+- **Simulation mode:** Limited by single machine resources (GPU sharing via Flower)
+- **Deployment mode:** True parallelism across machines
+- **Communication overhead:** More FL rounds = more communication, design for fewer rounds with more local epochs
+- **Heterogeneity:** Use FedProx strategy for clients with different capabilities
+
+---
+
+#### **Configuration Template**
+
+See `ml_src/federated_config_template.yaml` for comprehensive examples covering:
+- IID vs non-IID data distributions
+- Heterogeneous client profiles (different trainers)
+- All FL strategies (FedAvg, FedProx, FedAdam, FedAdagrad)
+- Simulation vs deployment modes
+- Integration with DP, EMA, callbacks
+
+---
+
 ## Documentation Structure
 
 Comprehensive docs in `docs/`:
@@ -749,12 +1109,13 @@ Documentation built with MkDocs Material theme, deployed to GitHub Pages.
 
 - Build system: setuptools
 - Dependencies defined in `pyproject.toml`
-- Console scripts: `ml-init-config`, `ml-split`, `ml-lr-finder`, `ml-train`, `ml-inference`, `ml-export`, `ml-visualise`, `ml-search`
+- Console scripts: `ml-init-config`, `ml-split`, `ml-lr-finder`, `ml-train`, `ml-inference`, `ml-export`, `ml-visualise`, `ml-search`, `ml-fl-server`, `ml-fl-client`, `ml-fl-run`
 - Core dependencies include: torch, torchvision, matplotlib, onnx, onnxruntime (for export functionality)
 - Optional dependencies:
   - Dev: `uv pip install -e ".[dev]"` (pytest, ruff, mkdocs)
   - Differential Privacy: `uv pip install -e ".[dp]"` (opacus)
   - Hyperparameter Search: `uv pip install -e ".[optuna]"` (optuna, plotly, kaleido)
+  - Federated Learning: `uv pip install -e ".[flower]"` (flwr)
 
 ## Git Workflow
 

@@ -25,6 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "accelerate>=0.20.0",
+    "flwr>=1.7.0",
     "loguru>=0.7.0",
     "matplotlib>=3.7.0",
     "numpy>=1.24.0",
@@ -44,7 +45,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
-    "pytest-timeout>=2.0.0",
+    "pytest-xdist>=3.0.0",
+    "pytest-timeout>=1.0.0",
     "ruff>=0.1.0",
     "mkdocs>=1.5.0",
     "mkdocs-material>=9.0.0",
@@ -58,6 +60,9 @@ optuna = [
     "plotly>=5.0.0",
     "kaleido>=0.2.0",
 ]
+federated = [
+    "flwr>=1.7.0",
+]
 
 [project.scripts]
 ml-export = "ml_src.cli.export:main"
@@ -68,6 +73,9 @@ ml-search = "ml_src.cli.search:main"
 ml-split = "ml_src.cli.splitting:main"
 ml-train = "ml_src.cli.train:main"
 ml-visualise = "ml_src.cli.visualise:main"
+ml-fl-server = "ml_src.cli.fl_server:main"
+ml-fl-client = "ml_src.cli.fl_client:main"
+ml-fl-run = "ml_src.cli.fl_run:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
