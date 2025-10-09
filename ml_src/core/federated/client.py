@@ -7,7 +7,7 @@ from typing import Callable, Dict, List, Tuple
 import torch
 from loguru import logger
 
-from ml_src.core.data.datasets import get_datasets
+from ml_src.core.data import get_datasets
 from ml_src.core.loader import get_dataloaders, get_dataset_sizes
 from ml_src.core.losses import get_criterion
 from ml_src.core.network import get_model

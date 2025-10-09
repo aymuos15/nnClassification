@@ -4,6 +4,7 @@ import torch
 from loguru import logger
 
 from ml_src.core.inference.base import BaseInferenceStrategy
+from ml_src.core.metrics.segmentation import calculate_iou
 
 # Conditional import for accelerate
 try:
@@ -58,7 +59,7 @@ class AccelerateInference(BaseInferenceStrategy):
                 "Or install with accelerate extras: pip install -e '.[accelerate]'"
             )
 
-    def run_inference(self, model, dataloader, dataset_size, device, class_names=None):
+    def run_inference(self, model, dataloader, dataset_size, device, class_names=None, task_type="classification", num_classes=None):
         """
         Run Accelerate-based inference on the dataset.
 

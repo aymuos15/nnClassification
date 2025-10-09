@@ -22,10 +22,12 @@ from ml_src.core.metrics import (
     log_confusion_matrix_to_tensorboard,
     save_classification_report,
 )
+from ml_src.core.metrics.segmentation import get_segmentation_report_str, save_segmentation_report
 from ml_src.core.network import get_model, load_model
 from ml_src.core.optimizer import get_optimizer, get_scheduler
 from ml_src.core.run import create_run_dir
 from ml_src.core.seeding import set_seed
+from ml_src.core.task import get_task_type
 from ml_src.core.test import evaluate_model
 from ml_src.core.trainers import get_trainer
 
@@ -204,8 +206,12 @@ def main():
     logger.info(f"Loading best checkpoint from {best_checkpoint_path}")
     model = load_model(model, best_checkpoint_path, device)
 
+    # Get task type and num_classes for inference
+    task_type = get_task_type(config)
+    num_classes = config["model"]["num_classes"]
+
     # Run test evaluation
-    test_acc, per_sample_results = evaluate_model(
+    test_metric, per_sample_results = evaluate_model(
         model=model,
         dataloader=dataloaders["test"],
         dataset_size=dataset_sizes["test"],
@@ -213,38 +219,68 @@ def main():
         class_names=class_names,
     )
 
-    # Extract labels and predictions for metrics
-    class_to_idx = {name: idx for idx, name in enumerate(class_names)}
-    test_labels = [class_to_idx[true_label] for true_label, _, _ in per_sample_results]
-    test_preds = [class_to_idx[pred_label] for _, pred_label, _ in per_sample_results]
-
     # Initialize TensorBoard writer for test metrics
     tensorboard_dir = os.path.join(run_dir, "tensorboard")
     writer = SummaryWriter(tensorboard_dir)
 
-    # Log test metrics to TensorBoard
-    logger.info("Logging test metrics to TensorBoard...")
-    writer.add_scalar("Test/Accuracy", test_acc, 0)
+    # Task-specific metric reporting
+    if task_type == "classification":
+        # Extract labels and predictions for metrics
+        class_to_idx = {name: idx for idx, name in enumerate(class_names)}
+        test_labels = [class_to_idx[true_label] for true_label, _, _ in per_sample_results]
+        test_preds = [class_to_idx[pred_label] for _, pred_label, _ in per_sample_results]
 
-    # Log confusion matrix
-    log_confusion_matrix_to_tensorboard(
-        writer, test_labels, test_preds, class_names, "Confusion_Matrix/test", 0
-    )
+        # Log test metrics to TensorBoard
+        logger.info("Logging test metrics to TensorBoard...")
+        writer.add_scalar("Test/Accuracy", test_metric, 0)
 
-    # Log classification report
-    test_report = get_classification_report_str(test_labels, test_preds, class_names)
-    writer.add_text("Classification_Report/test", test_report, 0)
+        # Log confusion matrix
+        log_confusion_matrix_to_tensorboard(
+            writer, test_labels, test_preds, class_names, "Confusion_Matrix/test", 0
+        )
 
-    # Save classification report to file
-    save_classification_report(
-        test_labels,
-        test_preds,
-        class_names,
-        os.path.join(run_dir, "logs", "classification_report_test.txt"),
-    )
+        # Log classification report
+        test_report = get_classification_report_str(test_labels, test_preds, class_names)
+        writer.add_text("Classification_Report/test", test_report, 0)
+
+        # Save classification report to file
+        save_classification_report(
+            test_labels,
+            test_preds,
+            class_names,
+            os.path.join(run_dir, "logs", "classification_report_test.txt"),
+        )
+
+        logger.success(f"Test Accuracy: {test_metric:.4f}")
+    else:  # segmentation
+        # Log test metrics
+        logger.info("Logging test metrics to TensorBoard...")
+        writer.add_scalar("Test/Mean_IoU", test_metric, 0)
+
+        # Generate and save segmentation report
+        # Note: per_sample_results has (image, true_mask, pred_mask, iou) tuples
+        # We need to flatten and concatenate for report generation
+        import torch
+        all_true_masks = torch.cat([true_mask.flatten() for _, true_mask, _, _ in per_sample_results])
+        all_pred_masks = torch.cat([pred_mask.flatten() for _, _, pred_mask, _ in per_sample_results])
+
+        test_report = get_segmentation_report_str(
+            all_pred_masks, all_true_masks, class_names, num_classes
+        )
+        writer.add_text("Segmentation_Report/test", test_report, 0)
+
+        # Save segmentation report to file
+        save_segmentation_report(
+            all_pred_masks,
+            all_true_masks,
+            class_names,
+            num_classes,
+            os.path.join(run_dir, "logs", "segmentation_report_test.txt"),
+        )
+
+        logger.success(f"Test Mean IoU: {test_metric:.4f}")
 
     writer.close()
-    logger.success(f"Test Accuracy: {test_acc:.4f}")
 
     logger.info("=" * 50)
     logger.success("Training and Testing Complete!")

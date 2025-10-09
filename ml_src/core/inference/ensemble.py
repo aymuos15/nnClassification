@@ -7,6 +7,7 @@ from loguru import logger
 
 from ml_src.core.config import load_config
 from ml_src.core.inference.base import BaseInferenceStrategy
+from ml_src.core.metrics.segmentation import calculate_iou
 from ml_src.core.network import get_model, load_model
 from ml_src.core.run import get_run_dir_from_checkpoint
 
@@ -225,7 +226,7 @@ class EnsembleInference(BaseInferenceStrategy):
         else:
             raise ValueError(f"Unknown aggregation method: {self.aggregation}")
 
-    def run_inference(self, model, dataloader, dataset_size, device, class_names=None):
+    def run_inference(self, model, dataloader, dataset_size, device, class_names=None, task_type="classification", num_classes=None):
         """
         Run ensemble inference on the dataset.
 

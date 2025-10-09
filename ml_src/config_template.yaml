@@ -1,8 +1,12 @@
-# Base configuration for PyTorch classifier training
+# Base configuration for PyTorch training (classification and segmentation)
 
 # Reproducibility configuration
 seed: 42
 deterministic: false  # Set to true for full determinism (slower but completely reproducible)
+
+# Task configuration
+task:
+  type: 'classification'  # Options: 'classification', 'segmentation'
 
 # Data configuration
 data:
@@ -351,3 +355,108 @@ transforms:
 #   #   model.architecture:
 #   #     type: 'categorical'
 #   #     choices: ['resnet18', 'resnet34', 'efficientnet_b0']
+
+# ================================================================================================
+# SEGMENTATION EXAMPLE CONFIGURATION
+# ================================================================================================
+# To use this framework for segmentation, copy the sections below and adjust as needed.
+#
+# Example segmentation config:
+# task:
+#   type: 'segmentation'
+# 
+# data:
+#   dataset_name: 'my_segmentation_dataset'
+#   data_dir: 'data/my_segmentation_dataset'
+#   fold: 0
+#   num_workers: 4
+# 
+# model:
+#   type: 'custom'
+#   custom_architecture: 'simple_unet'
+#   num_classes: 3                    # Background + 2 foreground classes
+#   in_channels: 3                    # RGB images
+#   base_features: 64                 # U-Net base feature channels
+# 
+# loss:
+#   type: 'dice'                      # Options: 'cross_entropy', 'dice', 'focal', 'combined'
+#   params:
+#     smooth: 1.0                     # Dice loss smoothing factor
+#     ignore_index: -100              # Class index to ignore
+# 
+# # Alternative loss configurations:
+# # Cross-entropy loss:
+# # loss:
+# #   type: 'cross_entropy'
+# #   params:
+# #     ignore_index: -100
+# 
+# # Combined loss (CE + Dice):
+# # loss:
+# #   type: 'combined'
+# #   params:
+# #     loss_weights:
+# #       ce: 0.4
+# #       dice: 0.6
+# #     ignore_index: -100
+# 
+# # Focal loss (for class imbalance):
+# # loss:
+# #   type: 'focal'
+# #   params:
+# #     alpha: 0.25
+# #     gamma: 2.0
+# #     ignore_index: -100
+# 
+# training:
+#   trainer_type: 'standard'          # or 'mixed_precision' for faster training
+#   batch_size: 8                     # Adjust based on GPU memory
+#   num_epochs: 50
+#   device: 'cuda:0'
+# 
+# optimizer:
+#   lr: 0.001
+#   momentum: 0.9
+# 
+# scheduler:
+#   step_size: 20
+#   gamma: 0.1
+# 
+# transforms:
+#   train:
+#     resize: [256, 256]
+#     normalize:
+#       mean: [0.485, 0.456, 0.406]
+#       std: [0.229, 0.224, 0.225]
+#   val:
+#     resize: [256, 256]
+#     normalize:
+#       mean: [0.485, 0.456, 0.406]
+#       std: [0.229, 0.224, 0.225]
+#   test:
+#     resize: [256, 256]
+#     normalize:
+#       mean: [0.485, 0.456, 0.406]
+#       std: [0.229, 0.224, 0.225]
+# 
+# Dataset structure for segmentation:
+# data/my_segmentation_dataset/
+# ├── raw/                           # Original images
+# │   ├── class1/
+# │   │   ├── img1.jpg
+# │   │   └── ...
+# │   └── class2/
+# └── masks/                         # Corresponding masks (same structure)
+#     ├── class1/
+#     │   ├── img1.png               # Grayscale mask (pixel values = class indices)
+#     │   └── ...
+#     └── class2/
+# 
+# Create splits for segmentation:
+# ml-split --raw_data data/my_segmentation_dataset/raw --task segmentation --folds 5
+# 
+# This will generate CSV-format index files:
+# data/my_segmentation_dataset/splits/fold_0_train.txt:
+#   raw/class1/img1.jpg,masks/class1/img1.png
+#   raw/class2/img2.jpg,masks/class2/img2.png
+#   ...

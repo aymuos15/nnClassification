@@ -4,6 +4,7 @@ import torch
 from loguru import logger
 
 from ml_src.core.inference.base import BaseInferenceStrategy
+from ml_src.core.metrics.segmentation import calculate_iou
 
 
 class MixedPrecisionInference(BaseInferenceStrategy):
@@ -50,7 +51,7 @@ class MixedPrecisionInference(BaseInferenceStrategy):
         self.amp_dtype = amp_dtype
         self.amp_dtype_name = "float16" if amp_dtype == torch.float16 else "bfloat16"
 
-    def run_inference(self, model, dataloader, dataset_size, device, class_names=None):
+    def run_inference(self, model, dataloader, dataset_size, device, class_names=None, task_type="classification", num_classes=None):
         """
         Run mixed precision inference on the dataset.
 

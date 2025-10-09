@@ -16,23 +16,31 @@ from ml_src.core.metrics import (
     log_confusion_matrix_to_tensorboard,
     save_classification_report,
 )
+from ml_src.core.metrics.segmentation import (
+    calculate_iou,
+    calculate_pixel_accuracy,
+    get_segmentation_report_str,
+    save_segmentation_report,
+)
+from ml_src.core.task import get_task_type, is_segmentation_task
 from ml_src.core.training.ema import ModelEMA
 
 
-def collect_predictions(model, dataloader, device):
+def collect_predictions(model, dataloader, device, task_type="classification"):
     """
-    Collect all predictions and labels from a dataloader.
+    Collect all predictions and labels from a dataloader (task-aware).
 
     Args:
         model: The model to use
         dataloader: DataLoader to iterate through
         device: Device to run on
+        task_type: Task type ('classification' or 'segmentation')
 
     Returns:
         Tuple of (all_labels, all_predictions)
 
     Example:
-        >>> labels, preds = collect_predictions(model, val_loader, device)
+        >>> labels, preds = collect_predictions(model, val_loader, device, 'classification')
         >>> accuracy = (labels == preds).sum() / len(labels)
     """
     model.eval()
@@ -45,10 +53,15 @@ def collect_predictions(model, dataloader, device):
             labels = labels.to(device)
 
             outputs = model(inputs)
-            _, preds = torch.max(outputs, 1)
 
-            all_labels.extend(labels.cpu().numpy())
-            all_preds.extend(preds.cpu().numpy())
+            # Task-specific prediction extraction
+            if task_type == "classification":
+                _, preds = torch.max(outputs, 1)  # [B]
+            else:  # segmentation
+                preds = torch.argmax(outputs, 1)  # [B, H, W]
+
+            all_labels.extend(labels.cpu().numpy().flatten())
+            all_preds.extend(preds.cpu().numpy().flatten())
 
     return all_labels, all_preds
 
@@ -128,6 +141,11 @@ class BaseTrainer(ABC):
         self.run_dir = run_dir
         self.class_names = class_names
 
+        # Task detection
+        self.task_type = get_task_type(config)
+        self.num_classes = config["model"]["num_classes"]
+        logger.info(f"Task type: {self.task_type}")
+
         # Initialize callback manager
         self.callback_manager = CallbackManager(callbacks or [])
         self.should_stop = False  # Flag for callback-based early stopping
@@ -181,6 +199,40 @@ class BaseTrainer(ABC):
 
         # Optuna trial for pruning (set externally if used in hyperparameter search)
         self.optuna_trial = None
+
+    def _extract_predictions(self, outputs):
+        """
+        Extract predictions from model outputs based on task type.
+
+        Args:
+            outputs: Model outputs (logits)
+
+        Returns:
+            Predicted class indices/masks
+        """
+        if self.task_type == "classification":
+            _, preds = torch.max(outputs, 1)  # [B]
+        else:  # segmentation
+            preds = torch.argmax(outputs, 1)  # [B, H, W]
+        return preds
+
+    def _calculate_batch_metric(self, preds, labels):
+        """
+        Calculate batch metric (correct predictions or pixel accuracy) based on task type.
+
+        Args:
+            preds: Predicted labels/masks
+            labels: Ground truth labels/masks
+
+        Returns:
+            Number of correct items (for classification) or correct pixels (for segmentation)
+        """
+        if self.task_type == "classification":
+            # Classification: count correct predictions
+            return torch.sum(preds == labels.data).item()
+        else:  # segmentation
+            # Segmentation: count correct pixels
+            return (preds == labels).sum().item()
 
     @abstractmethod
     def prepare_training(self):
@@ -397,15 +449,15 @@ class BaseTrainer(ABC):
                         with torch.no_grad():
                             outputs, loss = self.validation_step(inputs, labels)
 
-                    # Get predictions
-                    _, preds = torch.max(outputs, 1)
+                    # Get predictions (task-aware)
+                    preds = self._extract_predictions(outputs)
 
                     # Invoke on_batch_end callback
                     self.callback_manager.on_batch_end(self, batch_idx, batch, outputs, loss)
 
                     # Statistics
                     running_loss += loss.item() * inputs.size(0)
-                    running_corrects += torch.sum(preds == labels.data)
+                    running_corrects += self._calculate_batch_metric(preds, labels)
 
                 if phase == "train":
                     self.scheduler.step()
@@ -455,10 +507,12 @@ class BaseTrainer(ABC):
                             # Forward pass with EMA model
                             ema_outputs = ema_model(ema_inputs)
                             ema_loss = self.criterion(ema_outputs, ema_labels)
-                            _, ema_preds = torch.max(ema_outputs, 1)
+
+                            # Task-aware prediction extraction
+                            ema_preds = self._extract_predictions(ema_outputs)
 
                             ema_running_loss += ema_loss.item() * ema_inputs.size(0)
-                            ema_running_corrects += torch.sum(ema_preds == ema_labels.data)
+                            ema_running_corrects += self._calculate_batch_metric(ema_preds, ema_labels)
 
                     ema_epoch_loss = ema_running_loss / self.dataset_sizes["val"]
                     ema_epoch_acc = ema_running_corrects.double() / self.dataset_sizes["val"]
@@ -619,53 +673,87 @@ class BaseTrainer(ABC):
 
         # Collect predictions for train
         train_labels, train_preds = collect_predictions(
-            self.model, self.dataloaders["train"], self.device
+            self.model, self.dataloaders["train"], self.device, task_type=self.task_type
         )
 
-        # Log to TensorBoard
-        log_confusion_matrix_to_tensorboard(
-            self.writer,
-            train_labels,
-            train_preds,
-            self.class_names,
-            "Confusion_Matrix/train",
-            self.num_epochs - 1,
-        )
-        train_report = get_classification_report_str(train_labels, train_preds, self.class_names)
-        self.writer.add_text("Classification_Report/train", train_report, self.num_epochs - 1)
+        # Task-specific metric reporting
+        if self.task_type == "classification":
+            # Log to TensorBoard
+            log_confusion_matrix_to_tensorboard(
+                self.writer,
+                train_labels,
+                train_preds,
+                self.class_names,
+                "Confusion_Matrix/train",
+                self.num_epochs - 1,
+            )
+            train_report = get_classification_report_str(train_labels, train_preds, self.class_names)
+            self.writer.add_text("Classification_Report/train", train_report, self.num_epochs - 1)
 
-        # Save to files (for backward compatibility)
-        save_classification_report(
-            train_labels,
-            train_preds,
-            self.class_names,
-            os.path.join(self.run_dir, "logs", "classification_report_train.txt"),
-        )
+            # Save to files
+            save_classification_report(
+                train_labels,
+                train_preds,
+                self.class_names,
+                os.path.join(self.run_dir, "logs", "classification_report_train.txt"),
+            )
+        else:  # segmentation
+            # Log segmentation metrics
+            train_report = get_segmentation_report_str(
+                train_preds, train_labels, self.class_names, self.num_classes
+            )
+            self.writer.add_text("Segmentation_Report/train", train_report, self.num_epochs - 1)
+
+            # Save to files
+            save_segmentation_report(
+                train_preds,
+                train_labels,
+                self.class_names,
+                self.num_classes,
+                os.path.join(self.run_dir, "logs", "segmentation_report_train.txt"),
+            )
 
         # Collect predictions for val
         val_labels, val_preds = collect_predictions(
-            self.model, self.dataloaders["val"], self.device
+            self.model, self.dataloaders["val"], self.device, task_type=self.task_type
         )
 
-        # Log to TensorBoard
-        log_confusion_matrix_to_tensorboard(
-            self.writer,
-            val_labels,
-            val_preds,
-            self.class_names,
-            "Confusion_Matrix/val",
-            self.num_epochs - 1,
-        )
-        val_report = get_classification_report_str(val_labels, val_preds, self.class_names)
-        self.writer.add_text("Classification_Report/val", val_report, self.num_epochs - 1)
+        # Task-specific metric reporting
+        if self.task_type == "classification":
+            # Log to TensorBoard
+            log_confusion_matrix_to_tensorboard(
+                self.writer,
+                val_labels,
+                val_preds,
+                self.class_names,
+                "Confusion_Matrix/val",
+                self.num_epochs - 1,
+            )
+            val_report = get_classification_report_str(val_labels, val_preds, self.class_names)
+            self.writer.add_text("Classification_Report/val", val_report, self.num_epochs - 1)
 
-        # Save to files (for backward compatibility)
-        save_classification_report(
-            val_labels,
-            val_preds,
-            self.class_names,
-            os.path.join(self.run_dir, "logs", "classification_report_val.txt"),
-        )
+            # Save to files
+            save_classification_report(
+                val_labels,
+                val_preds,
+                self.class_names,
+                os.path.join(self.run_dir, "logs", "classification_report_val.txt"),
+            )
+        else:  # segmentation
+            # Log segmentation metrics
+            val_report = get_segmentation_report_str(
+                val_preds, val_labels, self.class_names, self.num_classes
+            )
+            self.writer.add_text("Segmentation_Report/val", val_report, self.num_epochs - 1)
+
+            # Save to files
+            save_segmentation_report(
+                val_preds,
+                val_labels,
+                self.class_names,
+                self.num_classes,
+                os.path.join(self.run_dir, "logs", "segmentation_report_val.txt"),
+            )
 
         # Save final summary
         if early_stop_triggered:
