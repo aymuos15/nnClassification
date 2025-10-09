@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Production-ready PyTorch image classification framework with flexible architecture support, index-based cross-validation, and comprehensive experiment tracking. Built as an installable Python package with CLI tools.
+Production-ready PyTorch framework for image classification and semantic segmentation with flexible architecture support, index-based cross-validation, and comprehensive experiment tracking. Built as an installable Python package with CLI tools.
+
+**Supported Tasks:**
+- **Classification**: Multi-class image classification (ResNet, EfficientNet, custom CNNs, etc.)
+- **Segmentation**: Semantic segmentation with pixel-level predictions (U-Net, Simple U-Net, etc.)
 
 ## Core Development Commands
 
@@ -53,14 +57,20 @@ mkdocs gh-deploy
 
 ### CLI Tools (after installation)
 ```bash
-# Generate dataset configuration
+# Generate dataset configuration (classification)
 ml-init-config data/my_dataset
+
+# Generate configuration for segmentation task
+ml-init-config data/my_dataset --task segmentation
 
 # Generate configuration with hyperparameter search (optional)
 ml-init-config data/my_dataset --optuna
 
-# Create cross-validation splits
+# Create cross-validation splits (classification)
 ml-split --raw_data data/my_dataset/raw --folds 5
+
+# Create cross-validation splits (segmentation)
+ml-split --raw_data data/my_dataset/images --mask_data data/my_dataset/masks --folds 5 --task segmentation
 
 # Find optimal learning rate (optional, before training)
 ml-lr-finder --config configs/my_dataset_config.yaml
@@ -123,9 +133,12 @@ ml_src/
     │   ├── server.py       # Server and strategy creation
     │   ├── strategies.py   # FL strategy utilities
     │   └── partitioning.py # Data partitioning (IID, non-IID, label-skew)
+    ├── task.py             # Task detection (classification vs segmentation)
     ├── data/               # Dataset handling and analysis
-    │   ├── __init__.py     # Data module API
-    │   ├── datasets.py     # IndexedImageDataset (index-based loading)
+    │   ├── __init__.py     # get_datasets() factory (task-aware routing)
+    │   ├── classification.py  # IndexedImageDataset (classification)
+    │   ├── segmentation.py    # SegmentationDataset (image + mask pairs)
+    │   ├── transforms.py      # Task-specific transforms (classification, segmentation)
     │   ├── detection.py    # Dataset structure detection
     │   ├── indexing.py     # File indexing utilities
     │   └── splitting.py    # CV split creation utilities
@@ -133,7 +146,11 @@ ml_src/
     ├── network/            # Model architectures
     │   ├── __init__.py     # get_model() API (routes base vs custom)
     │   ├── base.py         # Torchvision models (ResNet, EfficientNet, etc.)
-    │   └── custom.py       # Custom architectures (SimpleCNN, TinyNet)
+    │   └── custom.py       # Custom architectures (SimpleCNN, TinyNet, SimpleUNet)
+    ├── losses/             # Modular loss functions
+    │   ├── __init__.py     # get_loss() factory with LOSS_REGISTRY
+    │   ├── classification.py  # CrossEntropy, FocalLoss, LabelSmoothing
+    │   └── segmentation.py    # DiceLoss, DiceBCELoss, IoULoss
     ├── trainers/           # Specialized trainer implementations
     │   ├── __init__.py     # get_trainer() factory function
     │   ├── base.py         # BaseTrainer abstract class (with callback support, EMA, Optuna)
@@ -166,7 +183,6 @@ ml_src/
     ├── transforms/         # Transform utilities
     │   ├── __init__.py     # Transform API
     │   └── tta.py          # TTA augmentation utilities
-    ├── loss.py             # Loss functions
     ├── optimizer.py        # Optimizers and schedulers
     ├── lr_finder.py        # Learning rate finder implementation
     ├── export.py           # ONNX export utilities
@@ -175,6 +191,7 @@ ml_src/
     ├── metrics/            # Comprehensive metrics suite
     │   ├── __init__.py     # Metrics API
     │   ├── classification.py  # Classification-specific metrics
+    │   ├── segmentation.py    # Segmentation metrics (IoU, Dice, pixel accuracy)
     │   ├── utils.py        # Metric utilities
     │   ├── visualization.py   # Metric visualization
     │   └── onnx_validation.py # ONNX model validation and benchmarking
@@ -190,41 +207,64 @@ ml_src/
 
 1. **CLI vs Core Separation**: `cli/` orchestrates workflows, `core/` contains reusable components. Never import CLI modules from core modules.
 
-2. **Index-based Cross-Validation**: Dataset uses text files (e.g., `fold_0_train.txt`) containing relative paths to images in `data_dir/raw/`. This avoids duplicating data across folds.
+2. **Task-Agnostic Architecture**: Framework automatically detects task type (classification vs segmentation) from config and routes to appropriate:
+   - Datasets: `IndexedImageDataset` (classification) or `SegmentationDataset` (segmentation)
+   - Losses: CrossEntropy/FocalLoss (classification) or DiceLoss/IoULoss (segmentation)
+   - Metrics: Accuracy/F1 (classification) or IoU/Dice (segmentation)
+   - Models: Classification heads or segmentation decoders
+   - All trainers and inference strategies support both tasks seamlessly
 
-3. **Configuration System**:
+3. **Index-based Cross-Validation**: Dataset uses text files (e.g., `fold_0_train.txt`) containing relative paths to images/masks. This avoids duplicating data across folds.
+   - **Classification**: `raw/class_name/image.jpg` format
+   - **Segmentation**: Separate image and mask index files with paired paths
+
+4. **Configuration System**:
    - Base config template: `ml_src/config_template.yaml`
    - Dataset-specific configs: `configs/{dataset_name}_config.yaml` (auto-generated by `ml-init-config`)
-   - CLI overrides: Use `--batch_size`, `--lr`, `--fold`, etc. to override config values
+   - CLI overrides: Use `--batch_size`, `--lr`, `--fold`, `--task`, etc. to override config values
 
-4. **Model Loading**: `get_model(config, device)` routes to either:
+5. **Model Loading**: `get_model(config, device)` routes to either:
    - `base.py` for torchvision models (requires `model.type: 'base'`, `model.architecture: 'resnet18'`)
-   - `custom.py` for custom models (requires `model.type: 'custom'`, `model.custom_architecture: 'simple_cnn'`)
+   - `custom.py` for custom models (requires `model.type: 'custom'`, `model.custom_architecture: 'simple_cnn'` or `'simple_unet'`)
 
-5. **Trainer Selection**: `get_trainer(config, ...)` routes to specialized trainers:
+6. **Loss Selection**: `get_loss(config, device)` factory routes to task-appropriate losses:
+   - **Classification**: `cross_entropy`, `focal_loss`, `label_smoothing`
+   - **Segmentation**: `dice_loss`, `dice_bce_loss`, `iou_loss`
+   - Configured via `loss.type` in config (e.g., `loss.type: 'dice_loss'`)
+
+7. **Trainer Selection**: `get_trainer(config, ...)` routes to specialized trainers (all are task-agnostic):
    - `standard.py` for traditional PyTorch training (default)
    - `mixed_precision.py` for PyTorch AMP (requires `training.trainer_type: 'mixed_precision'`)
    - `accelerate.py` for multi-GPU/distributed (requires `training.trainer_type: 'accelerate'`)
    - `differential_privacy.py` for privacy-preserving training (requires `training.trainer_type: 'dp'`)
 
-6. **Run Directory Naming**: Auto-generated as `runs/{dataset_name}_{overrides}_fold_{N}/` where overrides include non-default parameters (e.g., `hymenoptera_batch_32_lr_0.01_fold_0`)
+8. **Run Directory Naming**: Auto-generated as `runs/{dataset_name}_{overrides}_fold_{N}/` where overrides include non-default parameters (e.g., `hymenoptera_batch_32_lr_0.01_fold_0`)
 
 ### Data Flow
 
-1. **Dataset Creation** (`core/data/datasets.py`):
-   - `get_datasets(config)` → reads index files from `data_dir/splits/`
-   - Creates `IndexedImageDataset` for train/val/test splits
+1. **Task Detection** (`core/task.py`):
+   - `detect_task(config)` → determines task type from config
+   - Returns `'classification'` or `'segmentation'`
+   - Based on `config['data']['task']` or dataset structure
+
+2. **Dataset Creation** (`core/data/__init__.py`):
+   - `get_datasets(config)` → task-aware factory function
+   - **Classification**: Routes to `classification.py`, creates `IndexedImageDataset`
+   - **Segmentation**: Routes to `segmentation.py`, creates `SegmentationDataset`
+   - Reads index files from `data_dir/splits/`
    - Test set is shared across all folds
 
-2. **Training** (`cli/train.py` → `core/trainers/`):
+3. **Training** (`cli/train.py` → `core/trainers/`):
    - Loads config, overrides with CLI args
-   - Selects appropriate trainer via `get_trainer()` factory
+   - Detects task type automatically
+   - Selects appropriate loss function via `get_loss()` factory
+   - Selects appropriate trainer via `get_trainer()` factory (task-agnostic)
    - Creates run directory with auto-generated name
    - Sets up logging (console + file + TensorBoard)
    - Trains model using selected trainer, saves best/last checkpoints
-   - Auto-runs test evaluation after training completes
+   - Auto-runs test evaluation after training completes with task-specific metrics
 
-3. **Checkpointing** (`core/checkpointing.py`):
+4. **Checkpointing** (`core/checkpointing.py`):
    - `save_checkpoint()`: Saves full state (model, optimizer, scheduler, epoch, metrics history)
    - `load_checkpoint()`: Restores complete training state for resumption
    - Best model saved to `weights/best.pt`, last to `weights/last.pt`
@@ -381,18 +421,30 @@ ml-inference --ensemble runs/fold_0/weights/best.pt runs/fold_1/weights/best.pt 
 
 ### Adding New Models
 
-**Torchvision models** (e.g., ConvNeXt):
+**Torchvision models** (e.g., ConvNeXt) - Classification only:
 1. No code changes needed
 2. Update config: `model.architecture: 'convnext_tiny'`
 
-**Custom models**:
+**Custom classification models**:
 1. Add architecture to `ml_src/core/network/custom.py` in `MODEL_REGISTRY`
 2. Ensure it accepts `num_classes`, `dropout` parameters
-3. Update config: `model.type: 'custom'`, `model.custom_architecture: 'your_model'`
+3. Ensure it returns logits of shape `(batch_size, num_classes)`
+4. Update config: `model.type: 'custom'`, `model.custom_architecture: 'your_model'`
+
+**Custom segmentation models**:
+1. Add architecture to `ml_src/core/network/custom.py` in `MODEL_REGISTRY`
+2. Ensure it accepts `num_classes`, `in_channels` parameters (dropout optional)
+3. Ensure it returns predictions of shape `(batch_size, num_classes, H, W)`
+4. Update config: `model.type: 'custom'`, `model.custom_architecture: 'your_unet_variant'`
+5. Example: `SimpleUNet` accepts `in_channels=3`, `num_classes=N` and returns per-pixel class logits
+
+**Available built-in models:**
+- **Classification**: `simple_cnn`, `tiny_net` (custom), all torchvision models (base)
+- **Segmentation**: `simple_unet` (custom U-Net with 4 encoder/decoder levels)
 
 ### Dataset Requirements
 
-Mandatory directory structure:
+**Classification Dataset:**
 ```
 data/{dataset_name}/
 ├── raw/                    # Original images (never modified)
@@ -407,8 +459,34 @@ data/{dataset_name}/
     ├── fold_1_train.txt
     └── ...
 ```
-
 Index files contain relative paths: `raw/class1/img1.jpg`
+
+**Segmentation Dataset:**
+```
+data/{dataset_name}/
+├── images/                 # Original images
+│   ├── img1.jpg
+│   ├── img2.jpg
+│   └── ...
+├── masks/                  # Corresponding masks (same filenames)
+│   ├── img1.png
+│   ├── img2.png
+│   └── ...
+└── splits/                 # Generated by ml-split --task segmentation
+    ├── test_images.txt     # Shared test set (images)
+    ├── test_masks.txt      # Shared test set (masks)
+    ├── fold_0_train_images.txt
+    ├── fold_0_train_masks.txt
+    ├── fold_0_val_images.txt
+    ├── fold_0_val_masks.txt
+    └── ...
+```
+Index files contain relative paths: `images/img1.jpg` and `masks/img1.png`
+
+**Mask format requirements:**
+- Single-channel PNG/TIFF files with integer class labels
+- Pixel value = class index (0, 1, 2, ..., num_classes-1)
+- Same spatial dimensions as corresponding image
 
 ### Configuration Override Behavior
 
@@ -552,13 +630,32 @@ The framework includes dataset detection and indexing utilities:
 
 These utilities are used automatically by `ml-split` and `ml-init-config` commands.
 
-### Training a New Dataset
+### Training a New Classification Dataset
 1. Organize data in `data/{name}/raw/class1/`, `data/{name}/raw/class2/`, etc.
 2. Run `ml-split --raw_data data/{name}/raw --folds 5`
 3. Run `ml-init-config data/{name}` → creates `configs/{name}_config.yaml`
 4. Edit config if needed (model architecture, hyperparameters, trainer type)
 5. (Optional) Run `ml-lr-finder --config configs/{name}_config.yaml` to find optimal LR
 6. Run `ml-train --config configs/{name}_config.yaml`
+
+### Training a New Segmentation Dataset
+1. Organize data:
+   - Images in `data/{name}/images/img1.jpg`, `img2.jpg`, etc.
+   - Masks in `data/{name}/masks/img1.png`, `img2.png`, etc. (matching filenames)
+2. Run `ml-split --raw_data data/{name}/images --mask_data data/{name}/masks --folds 5 --task segmentation`
+3. Run `ml-init-config data/{name} --task segmentation` → creates `configs/{name}_config.yaml`
+4. Edit config if needed:
+   - Model: `model.custom_architecture: 'simple_unet'` (or other segmentation model)
+   - Loss: `loss.type: 'dice_loss'` or `'dice_bce_loss'`
+   - Set `num_classes` to number of segmentation classes (including background)
+5. (Optional) Run `ml-lr-finder --config configs/{name}_config.yaml`
+6. Run `ml-train --config configs/{name}_config.yaml`
+
+**Key differences for segmentation:**
+- Use `--task segmentation` flag in `ml-split` and `ml-init-config`
+- Masks must be single-channel images with integer pixel values (0, 1, 2, ..., num_classes-1)
+- Metrics reported: IoU (Intersection over Union), Dice coefficient, pixel accuracy
+- TensorBoard: Visualizes predicted masks vs ground truth
 
 ### Resuming Training
 ```bash
@@ -1096,6 +1193,61 @@ Comprehensive docs in `docs/`:
 - **reference/**: Best practices, troubleshooting, FAQ
 
 Documentation built with MkDocs Material theme, deployed to GitHub Pages.
+
+## Extending the Framework
+
+### Adding New Loss Functions
+
+Loss functions are organized by task in the `ml_src/core/losses/` module:
+
+**Adding a classification loss:**
+1. Open `ml_src/core/losses/classification.py`
+2. Define your loss class (inherit from `nn.Module` or use a function)
+3. Register it in `LOSS_REGISTRY`:
+   ```python
+   LOSS_REGISTRY = {
+       'cross_entropy': CrossEntropyLoss,
+       'focal_loss': FocalLoss,
+       'your_new_loss': YourNewLoss,  # Add here
+   }
+   ```
+4. Update config: `loss.type: 'your_new_loss'`
+
+**Adding a segmentation loss:**
+1. Open `ml_src/core/losses/segmentation.py`
+2. Define your loss class
+3. Register it in `LOSS_REGISTRY`:
+   ```python
+   LOSS_REGISTRY = {
+       'dice_loss': DiceLoss,
+       'dice_bce_loss': DiceBCELoss,
+       'iou_loss': IoULoss,
+       'your_new_loss': YourNewLoss,  # Add here
+   }
+   ```
+4. Update config: `loss.type: 'your_new_loss'`
+
+**Loss function requirements:**
+- Accept `config` as first parameter (even if unused)
+- Return a callable loss function or nn.Module
+- For classification: expect `(logits, targets)` where logits is `(N, C)`, targets is `(N,)`
+- For segmentation: expect `(logits, targets)` where logits is `(N, C, H, W)`, targets is `(N, H, W)`
+
+**Factory pattern:**
+The framework uses `get_loss(config, device)` which automatically routes to the correct loss registry based on task type.
+
+### Adding New Metrics
+
+Metrics are also task-specific:
+
+**Classification metrics** (`ml_src/core/metrics/classification.py`):
+- Current: Accuracy, Precision, Recall, F1, Confusion Matrix, Classification Report
+
+**Segmentation metrics** (`ml_src/core/metrics/segmentation.py`):
+- Current: IoU (Intersection over Union), Dice coefficient, Pixel Accuracy
+- All metrics support multi-class segmentation and per-class averaging
+
+To add new metrics, extend the respective module and update trainer evaluation logic in `ml_src/core/trainers/base.py`.
 
 ## Code Style
 
