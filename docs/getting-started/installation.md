@@ -1,415 +1,73 @@
 # Installation Guide
 
-## System Requirements
-
-### Hardware Requirements
-
-**Minimum:**
-- CPU: 2+ cores
-- RAM: 8GB
-- Disk: 10GB free space
-- GPU: Optional (CPU training supported)
-
-**Recommended:**
-- CPU: 4+ cores
-- RAM: 16GB+
-- Disk: 50GB+ free space (for datasets)
-- GPU: NVIDIA GPU with 8GB+ VRAM (GTX 1080, RTX 2060, or better)
-- CUDA 11.0+ compatible
-
-### Software Requirements
-
-- **Python:** 3.8 or higher
-- **Operating System:** Linux, macOS, or Windows
-- **CUDA:** 11.0+ (optional, for GPU training)
+Use this page as a lightweight companion to **[Workflow · Step 1](../workflow.md#step-1-install-dependencies)**, which remains the authoritative walkthrough. This guide summarizes requirements, gives a compact install recipe, and captures platform-specific notes and troubleshooting tips.
 
 ---
 
-## Installation Steps
+## Requirements at a Glance
 
-### 1. Clone the Repository
+| Component | Minimum | Recommended |
+| --- | --- | --- |
+| CPU | 2 cores | 4+ cores |
+| RAM | 8 GB | 16 GB+ |
+| Disk | 10 GB free | 50 GB+ (datasets) |
+| GPU | Optional | NVIDIA 8 GB+ VRAM, CUDA 11+ |
+| Python | 3.8+ | Latest 3.10/3.11 |
 
-```bash
-git clone <repository-url>
-cd gui
-```
-
-Or if you already have the code:
-```bash
-cd gui
-```
-
-### 2. Create Virtual Environment (Recommended)
-
-**Using venv (Python built-in):**
-```bash
-python3 -m venv venv
-source venv/bin/activate  # On Linux/macOS
-# OR
-venv\Scripts\activate  # On Windows
-```
-
-**Using conda:**
-```bash
-conda create -n pytorch-classifier python=3.10
-conda activate pytorch-classifier
-```
-
-### 3. Install Dependencies
-
-```bash
-uv pip install -e .
-```
-
-This installs the package in editable mode along with all required dependencies including:
-- PyTorch and torchvision
-- TensorBoard
-- NumPy, Pillow
-- matplotlib, seaborn
-- scikit-learn
-- PyYAML, loguru, rich
-
-**Note:** After installation, CLI commands (`ml-train`, `ml-inference`, `ml-split`, `ml-visualise`) are available globally in your environment.
+CPU-only training works everywhere; GPU support requires CUDA-capable hardware.
 
 ---
 
-## Verify Installation
+## Install in Three Steps
 
-### Check Python Version
-
-```bash
-python --version
-# Should show: Python 3.8+ or higher
-```
-
-### Check PyTorch Installation
-
-```bash
-python -c "import torch; print(f'PyTorch version: {torch.__version__}')"
-```
-
-### Check CUDA Availability (GPU)
-
-```bash
-python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-python -c "import torch; print(f'CUDA version: {torch.version.cuda}')"
-python -c "import torch; print(f'GPU count: {torch.cuda.device_count()}')"
-```
-
-**Expected output (if GPU available):**
-```
-CUDA available: True
-CUDA version: 11.8
-GPU count: 1
-```
-
-**If no GPU:**
-```
-CUDA available: False
-```
-This is fine—CPU training is supported.
-
-### Run Quick Test
-
-```bash
-# Verify all imports work
-python -c "
-import torch
-import torchvision
-import tensorboard
-import yaml
-import numpy as np
-import matplotlib
-import seaborn
-import sklearn
-print('All imports successful!')
-"
-```
-
----
-
-## GPU Setup (Optional but Recommended)
-
-### NVIDIA Driver
-
-Check if NVIDIA driver is installed:
-```bash
-nvidia-smi
-```
-
-You should see GPU information. If not, install NVIDIA drivers:
-- **Ubuntu/Debian:** `sudo apt-get install nvidia-driver-XXX`
-- **Windows:** Download from [NVIDIA website](https://www.nvidia.com/download/index.aspx)
-
-### CUDA Toolkit
-
-PyTorch comes with CUDA bundled, so separate CUDA installation is usually not needed. However, for development:
-
-**Check CUDA version:**
-```bash
-nvcc --version
-```
-
-**Install CUDA (if needed):**
-- Download from [NVIDIA CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
-- Follow platform-specific instructions
-
-### cuDNN (Usually Not Needed)
-
-PyTorch bundles cuDNN. If you need a specific version:
-- Download from [NVIDIA cuDNN](https://developer.nvidia.com/cudnn)
-- Follow installation instructions
-
----
-
-## Troubleshooting Installation
-
-### Issue: "uv: command not found"
-
-**Solution:**
-```bash
-# Install uv first
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Or use pip as fallback
-pip install uv
-
-# Then install the package
-uv pip install -e .
-```
-
-### Issue: "torch not found" or Import Error
-
-**Solution:**
-```bash
-# Reinstall PyTorch
-uv pip uninstall torch torchvision
-uv pip install torch torchvision
-
-# Or install specific version (example for CUDA 11.8)
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-```
-
-### Issue: CUDA Version Mismatch
-
-**Problem:** "CUDA version mismatch" error
-
-**Solution:**
-```bash
-# Find your CUDA version
-nvidia-smi  # Look for "CUDA Version" in top right
-
-# Install matching PyTorch
-# For CUDA 11.8:
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-
-# For CUDA 12.1:
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-
-# For CPU only:
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-```
-
-See [PyTorch Get Started](https://pytorch.org/get-started/locally/) for all options.
-
-### Issue: Permission Denied
-
-**Solution:**
-```bash
-# Use --user flag
-uv pip install -e . --user
-
-# Or use sudo (not recommended)
-sudo uv pip install -e .
-```
-
-### Issue: Out of Disk Space
-
-**Solution:**
-```bash
-# Check disk space
-df -h
-
-# Clear uv cache
-uv cache clean
-
-# Install to different location
-uv pip install -e . --target /path/to/large/disk
-```
-
-### Issue: Slow Installation
-
-**Solution:**
-```bash
-# uv is already much faster than pip
-
-# Or skip dependencies if already installed
-uv pip install -e . --no-deps
-```
-
----
-
-## Platform-Specific Notes
-
-### Ubuntu/Debian Linux
-
-```bash
-# Install system dependencies
-sudo apt-get update
-sudo apt-get install python3 python3-venv
-
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install project
-python3 -m venv venv
-source venv/bin/activate
-uv pip install -e .
-```
-
-### macOS
-
-```bash
-# Install Python via Homebrew
-brew install python
-
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install project
-python3 -m venv venv
-source venv/bin/activate
-uv pip install -e .
-```
-
-**Note:** macOS doesn't have CUDA support. Use CPU or Google Colab for GPU.
-
-### Windows
-
-```powershell
-# Install Python from python.org
-
-# Install uv
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Create virtual environment
-python -m venv venv
-venv\Scripts\activate
-
-# Install dependencies
-uv pip install -e .
-```
-
-**Note:** Windows paths use backslashes (`\`). Adjust paths in configs accordingly.
-
----
-
-## Docker Installation (Alternative)
-
-### Dockerfile
-
-```dockerfile
-FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
-
-WORKDIR /workspace
-
-# Copy project files
-COPY pyproject.toml .
-COPY . .
-
-# Install uv and package
-RUN pip install uv
-RUN uv pip install -e .
-
-# Set entrypoint
-ENTRYPOINT ["ml-train"]
-```
-
-### Build and Run
-
-```bash
-# Build image
-docker build -t pytorch-classifier .
-
-# Run training
-docker run --gpus all -v $(pwd)/data:/workspace/data pytorch-classifier
-
-# Interactive session
-docker run --gpus all -it pytorch-classifier /bin/bash
-```
-
----
-
-## Cloud Platform Setup
-
-### Google Colab
-
-1. Upload code to Google Drive
-2. Open Colab notebook
-3. Mount Drive:
-   ```python
-   from google.colab import drive
-   drive.mount('/content/drive')
-   ```
-4. Install dependencies:
+1. **Get the source** (clone or open your checkout)
    ```bash
-   !pip install uv
-   !uv pip install -e .
+   git clone <repo-url>
+   cd gui
    ```
-5. Run training:
+2. **Activate an environment (optional but recommended)**
    ```bash
-   !ml-train
+   python3 -m venv .venv && source .venv/bin/activate  # Linux/macOS
+   # or: conda create -n ml-classifier python=3.10 && conda activate ml-classifier
+   ```
+3. **Install the package**
+   ```bash
+   uv pip install -e .
    ```
 
-### AWS EC2
-
-```bash
-# Launch Deep Learning AMI (includes PyTorch, CUDA)
-# SSH into instance
-
-# Clone repository
-git clone <repo-url>
-cd gui
-
-# Activate PyTorch environment (already installed on DL AMI)
-source activate pytorch
-
-# Install uv and additional dependencies
-pip install uv
-uv pip install -e .
-
-# Run training
-ml-train
-```
-
-### Google Cloud Platform
-
-```bash
-# Create Compute Engine instance with GPU
-# Use Deep Learning VM image
-
-# SSH into instance
-gcloud compute ssh instance-name
-
-# Clone and install
-git clone <repo-url>
-cd gui
-pip install uv
-uv pip install -e .
-
-# Run training
-ml-train
-```
+To include extras, add the suffixes from the workflow (e.g. `".[dev,optuna]"`). After installation the CLI commands (`ml-train`, `ml-inference`, etc.) are on your PATH.
 
 ---
 
-## Updating Dependencies
-
-### Update All Packages
+## Quick Verification
 
 ```bash
-uv pip install --upgrade -e .
+python -c "import torch; print(f'PyTorch {torch.__version__}'); print('CUDA:', torch.cuda.is_available())"
+ml-train --help
 ```
+
+When a GPU is present, `nvidia-smi` should list it. If CUDA is unavailable, training will fall back to CPU.
+
+---
+
+## Platform Notes
+
+- **Ubuntu/Debian:** `sudo apt-get install python3 python3-venv && curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **macOS:** Install Python via Homebrew; CUDA is not available, so run on CPU or external GPU resources.
+- **Windows:** Use `python -m venv .venv` then `.venv\Scripts\activate`; `uv` installs via PowerShell (`irm https://astral.sh/uv/install.ps1 | iex`).
+
+Docker or cloud setups follow the same installation command inside the container/VM. Mount your `data/` directory when running containers.
+
+---
+
+## Troubleshooting Highlights
+
+- `uv: command not found` → install uv first (`curl -LsSf https://astral.sh/uv/install.sh | sh`) or temporarily use `pip install uv`.
+- Import errors for torch/torchvision → reinstall via the appropriate PyTorch wheel index (match CUDA version as per [PyTorch local install guide](https://pytorch.org/get-started/locally/)).
+- CUDA mismatch → pick the wheel that corresponds to `nvidia-smi`’s CUDA version, or install the CPU-only wheel.
+- Permission or disk issues → use `--user`, clean caches (`uv cache clean`), or install to a larger target (`--target /mnt/bigdisk`).
+
+For a full setup sequence (including dataset prep and verification runs), continue with **[Workflow Step 2](../workflow.md#step-2-prepare-the-dataset)**.
 
 ### Update Specific Package
 

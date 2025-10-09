@@ -1,5 +1,7 @@
 # CLI Override System
 
+For day-to-day usage examples, see the relevant steps in the **[Workflow Guide](../workflow.md)** (especially training and inference). This reference focuses solely on how CLI flags map onto configuration entries.
+
 ## Overview
 
 Command-line arguments override YAML configuration, enabling quick experimentation without editing config files. This is perfect for hyperparameter search and rapid iteration.

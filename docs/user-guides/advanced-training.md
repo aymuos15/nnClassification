@@ -1,6 +1,6 @@
 # Advanced Training Guide
 
-Comprehensive guide to specialized trainers for advanced use cases including mixed precision, multi-GPU, and differential privacy training.
+Use this reference after you are comfortable with the baseline loop in **[Workflow Step 6](../workflow.md#step-6-train-across-folds)**. It focuses on specialised trainers—mixed precision, multi-GPU, and differential privacy—without repeating the core workflow steps.
 
 ---
 

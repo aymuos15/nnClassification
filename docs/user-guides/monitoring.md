@@ -1,226 +1,70 @@
-# Monitoring Training Guide
+# Monitoring Guide
 
-Monitor training progress with TensorBoard and logs.
+Complement **[Workflow Step 7](../workflow.md#step-7-monitor--review-progress)** with these quick references for visualising runs and inspecting logs.
 
-## TensorBoard
+---
 
-### Launch TensorBoard
-
-```bash
-# View all runs
-tensorboard --logdir runs/
-
-runs/hymenoptera_base_fold_0/tensorboard
-
-# Specify port
-tensorboard --logdir runs/hymenoptera_base_fold_0
-```
-
-Open http://localhost:6006 in your browser.
-
-### Using ml-visualise
-
-The `ml-visualise` command provides easy TensorBoard management:
+## Essential Commands
 
 ```bash
-runs/hymenoptera_base_fold_0
-# Launch on custom port
-runs/hymenoptera_base_fold_0
+# Launch TensorBoard for a single run
+ml-visualise --mode launch --run_dir runs/my_dataset_fold_0
+
+# Inspect raw logs
+tail -f runs/my_dataset_fold_0/logs/train.log
+
+# Clean TensorBoard artefacts only
+ml-visualise --mode clean --run_dir runs/my_dataset_fold_0
 ```
 
-## What Gets Logged
+TensorBoard lives at http://localhost:6006 by default; use `--port` on `ml-visualise` if the port is taken.
 
-### During Training
+---
 
-**Scalars (metrics over time):**
-- Training loss
-- Validation loss
-- Training accuracy
-- Validation accuracy
-- Learning rate
+## What to Expect in TensorBoard
 
-**Images (at end of training):**
-- Confusion matrices (train & val)
+| Tab | Contents |
+| --- | --- |
+| **Scalars** | Train/val loss, accuracy, learning rate |
+| **Images** | Confusion matrices, optional sample grids |
+| **Text** | Classification reports (train/val/test) |
 
-**Text:**
-- Classification reports (train & val)
+Enable smoothing for noisy scalar curves and compare multiple run directories by pointing `--logdir` to the parent `runs/` folder.
 
-### Viewing Metrics
+---
 
-1. **Scalars tab:** Loss and accuracy curves
-2. **Images tab:** Confusion matrices
-3. **Text tab:** Classification reports
-
-## Visualizing Dataset Samples
-
-View sample images from your dataset:
+## Visualise Samples & Predictions
 
 ```bash
-# Visualize 16 training samples
-ml-visualise --mode samples --run_dir runs/hymenoptera_base_fold_0 --split train --num_images 16
+# Dataset samples
+ml-visualise --mode samples --run_dir runs/my_dataset_fold_0 --split train --num_images 20
 
-# Visualize validation samples
-ml-visualise --mode samples --run_dir runs/hymenoptera_base_fold_0 --split val --num_images 32
-
-# Visualize test samples
-ml-visualise --mode runs/hymenoptera_base_fold_0 --num_images 8
+# Model predictions (correct vs incorrect borders)
+ml-visualise --mode predictions --run_dir runs/my_dataset_fold_0 --split val --checkpoint best.pt --num_images 32
 ```
 
-This creates image grids in TensorBoard showing:
-- Grid view of multiple images
-- Individual images organized by class
+Use these after an experiment finishes to audit data quality or error patterns.
 
-## Visualizing Model Predictions
+---
 
-Visualize model predictions with colored borders:
+## Run Artefacts to Inspect
 
-```bash
-# Visualize predictions on validation set using best checkpoint
-runs/hymenoptera_base_fold_0
+| File | Purpose |
+| --- | --- |
+| `logs/train.log` | Chronological record of training (same output as console) |
+| `logs/classification_report_*.txt` | Precision/recall/F1 for each split |
+| `summary.txt` | Dataset sizes, best metrics, configuration snapshot |
 
-# Visualize predictions on test set
-ml-visualise --mode predictions --run_dir runs/base --split test --checkpoint best.pt --num_images 32
+`tail -f` is helpful during long runs; use `grep`/`rg` on `train.log` to locate specific epochs or warnings.
 
-# Use last checkpoint instead
-ml-visualise --mode predictions --run_dir runs/base --split val --checkpoint last.pt
-```
+---
 
-**Color coding:**
-- 🟢 **Green border** = Correct prediction
-- 🔴 **Red border** = Incorrect prediction
+## Troubleshooting
 
-Predictions are organized in TensorBoard by:
-- Grid view of all predictions
-- Individual images organized by Correct/Incorrect status
+| Symptom | Suggestion |
+| --- | --- |
+| TensorBoard blank | Verify correct `--run_dir`, refresh browser, check training still running |
+| Metrics missing | Ensure run completed; some logs write only at epoch end |
+| Log spam | Reduce log level via config or truncate with `ml-visualise --mode clean` before reruns |
 
-## Cleaning TensorBoard Logs
-
-Remove TensorBoard logs to start fresh:
-
-```bash
-# Clean all runs
-ml-visualise --mode clean
-
-# Clean specific run
-ml-visualise --mode clean --run_dir runs/base
-```
-
-This removes only TensorBoard logs, preserving:
-- Model weights
-- Training logs
-- Configuration files
-- Metrics reports
-
-## File-based Logging
-
-### Log Files
-
-Training creates log files in `runs/<run_name>/logs/`:
-
-```
-runs/base/logs/
-├── train.log                           # Training log
-├── inference.log                       # Inference log
-├── classification_report_train.txt     # Train metrics
-├── classification_report_val.txt       # Validation metrics
-└── classification_report_test.txt      # Test metrics
-```
-
-### View Logs
-
-```bash
-# View training log
-cat runs/base/logs/train.log
-
-# Follow training in real-time
-tail -f runs/base/logs/train.log
-
-# View classification report
-cat runs/base/logs/classification_report_val.txt
-```
-
-### Summary File
-
-Each run includes `summary.txt` with key information:
-
-```bash
-cat runs/base/summary.txt
-```
-
-Contains:
-- Configuration
-- Dataset sizes
-- Model parameters
-- Training duration
-- Best accuracy
-- Final metrics
-
-## Tips
-
-### Compare Multiple Runs
-
-```bash
-# View all runs together
-tensorboard --logdir runs/
-
-# Compare specific runs
-tensorboard --logdir_spec \
-  base:runs/base/tensorboard,\
-  lr_001:runs/lr_0.01/tensorboard
-```
-
-### Refresh TensorBoard
-
-If new data doesn't appear:
-1. Refresh browser (F5)
-2. Check TensorBoard is reading correct directory
-3. Ensure training/visualization completed successfully
-
-### Monitor During Training
-
-```bash
-# Terminal 1: Start training
-ml-train --num_epochs 100
-
-# Terminal 2: Launch TensorBoard
-ml-visualise --mode launch --run_dir runs/base
-```
-
-Watch metrics update in real-time as training progresses.
-
-## Common Workflows
-
-### Complete Visualization Pipeline
-
-```bash
-# 1. Train model
-ml-train --batch_size 32 --num_epochs 50
-
-# 2. Visualize training samples
-ml-visualise --mode samples --run_dir runs/batch_32 --split train
-
-# 3. Visualize validation predictions
-ml-visualise --mode predictions --run_dir runs/batch_32 --split val
-
-# 4. Launch TensorBoard
-ml-visualise --mode launch --run_dir runs/batch_32
-```
-
-### After Training
-
-```bash
-# View training metrics
-tensorboard --logdir runs/base/tensorboard
-
-# Check summary
-cat runs/base/summary.txt
-
-# Visualize predictions
-ml-visualise --mode predictions --run_dir runs/base --split test
-```
-
-## Related
-
-- [Training Guide](training.md)
-- [Inference Guide](inference.md)
-- [Visualization Reference](../reference/visualization.md)
+For deeper analysis (Optuna plots, prediction galleries), see the corresponding sections in the workflow or specialised guides.
