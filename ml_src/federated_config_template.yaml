@@ -1,0 +1,247 @@
+# Federated Learning Configuration Template
+# Extends the standard config_template.yaml with FL-specific sections
+
+# Base configuration (same as config_template.yaml)
+seed: 42
+deterministic: false
+
+data:
+  dataset_name: 'my_federated_dataset'
+  data_dir: 'data/my_federated_dataset'
+  num_workers: 4
+
+model:
+  type: 'base'
+  architecture: 'resnet18'
+  num_classes: 10
+  pretrained: true
+  dropout: 0.5
+
+training:
+  # Default trainer type (can be overridden per client)
+  trainer_type: 'standard'
+
+  # Local training epochs per federated round
+  num_epochs: 5
+  batch_size: 32
+  device: 'cuda:0'
+
+  # EMA can be used in federated learning
+  ema:
+    enabled: false
+    decay: 0.9999
+    warmup_steps: 0
+
+optimizer:
+  type: 'sgd'
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 0.0001
+
+scheduler:
+  type: 'step'
+  step_size: 10
+  gamma: 0.1
+
+transforms:
+  train:
+    resize: 256
+    crop: 224
+    horizontal_flip: true
+    vertical_flip: false
+    rotation_degrees: 0
+    color_jitter:
+      brightness: 0.0
+      contrast: 0.0
+      saturation: 0.0
+      hue: 0.0
+    normalize:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+
+  val:
+    resize: 256
+    crop: 224
+    normalize:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+
+# ============================================================================
+# FEDERATED LEARNING CONFIGURATION
+# ============================================================================
+
+federated:
+  # Execution mode: 'simulation' or 'deployment'
+  # - simulation: All clients run on one machine (Flower simulation engine)
+  # - deployment: Clients run as separate processes (possibly on different machines)
+  mode: 'simulation'
+
+  # Server configuration
+  server:
+    # Server address (only for deployment mode)
+    address: '0.0.0.0:8080'
+
+    # Federated learning strategy
+    # Options: 'FedAvg', 'FedProx', 'FedAdam', 'FedAdagrad'
+    strategy: 'FedAvg'
+
+    # Number of federated rounds
+    num_rounds: 100
+
+    # Strategy-specific configuration
+    strategy_config:
+      # Client selection
+      fraction_fit: 0.8              # Fraction of clients to use for training per round
+      fraction_evaluate: 0.5         # Fraction of clients to use for evaluation per round
+      min_fit_clients: 8             # Minimum clients for training (fails if less)
+      min_evaluate_clients: 4        # Minimum clients for evaluation
+      min_available_clients: 10      # Minimum total clients (waits if less)
+
+      # FedProx-specific (only used if strategy: 'FedProx')
+      # proximal_mu: 0.01            # Proximal term for FedProx (handles heterogeneity)
+
+      # FedAdam/FedAdagrad-specific (only used if strategy: 'FedAdam' or 'FedAdagrad')
+      # eta: 0.01                    # Server learning rate
+      # eta_l: 0.01                  # Client learning rate
+      # beta_1: 0.9                  # First moment decay (FedAdam only)
+      # beta_2: 0.99                 # Second moment decay (FedAdam only)
+
+  # Client configuration
+  clients:
+    # Number of clients (simulation mode)
+    num_clients: 10
+
+    # ========================================================================
+    # HETEROGENEOUS CLIENT PROFILES (Simulation Mode)
+    # ========================================================================
+    # Use 'profiles' to define groups of clients with different configurations.
+    # This enables heterogeneous federated learning in simulation mode.
+    #
+    # profiles:
+    #   # Profile 1: Standard GPU clients (clients 0-5)
+    #   - id: [0, 1, 2, 3, 4, 5]
+    #     trainer_type: 'standard'
+    #     batch_size: 32
+    #     device: 'cuda:0'
+    #
+    #   # Profile 2: Mixed precision GPU clients (clients 6-7)
+    #   - id: [6, 7]
+    #     trainer_type: 'mixed_precision'
+    #     batch_size: 64
+    #     device: 'cuda:0'
+    #
+    #   # Profile 3: Privacy-sensitive client (client 8)
+    #   - id: [8]
+    #     trainer_type: 'dp'
+    #     batch_size: 16
+    #     device: 'cuda:0'
+    #     dp:
+    #       noise_multiplier: 1.1
+    #       max_grad_norm: 1.0
+    #       target_epsilon: 3.0
+    #       target_delta: 1e-5
+    #
+    #   # Profile 4: CPU-only client (client 9)
+    #   - id: [9]
+    #     trainer_type: 'standard'
+    #     batch_size: 16
+    #     device: 'cpu'
+
+    # ========================================================================
+    # CLIENT MANIFEST (Deployment Mode)
+    # ========================================================================
+    # Use 'manifest' to explicitly map client IDs to data partitions and configs.
+    # This is used when running clients on separate machines.
+    #
+    # manifest:
+    #   # Hospital 1: Standard GPU training
+    #   - id: 0
+    #     data_partition: 'client_0_train.txt'
+    #     config_override: 'configs/client_overrides/hospital_1.yaml'
+    #
+    #   # Hospital 2: Privacy-sensitive data with DP
+    #   - id: 1
+    #     data_partition: 'client_1_train.txt'
+    #     config_override: 'configs/client_overrides/hospital_2_dp.yaml'
+    #
+    #   # Hospital 3: Multi-GPU setup
+    #   - id: 2
+    #     data_partition: 'client_2_train.txt'
+    #     config_override: 'configs/client_overrides/hospital_3_multigpu.yaml'
+
+  # Data partitioning configuration (used by ml-split --federated)
+  partitioning:
+    # Strategy: 'iid', 'non-iid', 'label-skew'
+    strategy: 'non-iid'
+
+    # Dirichlet alpha for non-iid (lower = more heterogeneous)
+    # Typical values: 0.1 (very heterogeneous), 0.5 (moderate), 10.0 (nearly IID)
+    alpha: 0.5
+
+    # Classes per client for label-skew
+    # classes_per_client: 2
+
+# ============================================================================
+# EXAMPLE CONFIGURATIONS
+# ============================================================================
+
+# Example 1: Basic Simulation (IID data, homogeneous clients)
+# federated:
+#   mode: 'simulation'
+#   server:
+#     strategy: 'FedAvg'
+#     num_rounds: 50
+#     strategy_config:
+#       fraction_fit: 1.0
+#       min_fit_clients: 5
+#       min_available_clients: 5
+#   clients:
+#     num_clients: 5
+#   partitioning:
+#     strategy: 'iid'
+
+# Example 2: Heterogeneous Simulation (non-IID data, mixed trainers)
+# federated:
+#   mode: 'simulation'
+#   server:
+#     strategy: 'FedProx'
+#     num_rounds: 100
+#     strategy_config:
+#       fraction_fit: 0.8
+#       proximal_mu: 0.01
+#   clients:
+#     num_clients: 10
+#     profiles:
+#       - id: [0, 1, 2, 3, 4]
+#         trainer_type: 'standard'
+#       - id: [5, 6]
+#         trainer_type: 'mixed_precision'
+#       - id: [7]
+#         trainer_type: 'dp'
+#         dp:
+#           noise_multiplier: 1.1
+#   partitioning:
+#     strategy: 'non-iid'
+#     alpha: 0.5
+
+# Example 3: Production Deployment (real distributed setup)
+# federated:
+#   mode: 'deployment'
+#   server:
+#     address: '10.0.0.1:8080'
+#     strategy: 'FedAvg'
+#     num_rounds: 200
+#     strategy_config:
+#       fraction_fit: 0.8
+#       min_fit_clients: 8
+#       min_available_clients: 10
+#   clients:
+#     manifest:
+#       - id: 0
+#         config_override: 'configs/client_0.yaml'
+#       - id: 1
+#         config_override: 'configs/client_1.yaml'
+#       # ... more clients
+#   partitioning:
+#     strategy: 'non-iid'
+#     alpha: 0.3

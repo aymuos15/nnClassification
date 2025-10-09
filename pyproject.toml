@@ -58,6 +58,9 @@ optuna = [
     "plotly>=5.0.0",
     "kaleido>=0.2.0",
 ]
+flower = [
+    "flwr>=1.7.0",
+]
 
 [project.scripts]
 ml-export = "ml_src.cli.export:main"
@@ -68,6 +71,9 @@ ml-search = "ml_src.cli.search:main"
 ml-split = "ml_src.cli.splitting:main"
 ml-train = "ml_src.cli.train:main"
 ml-visualise = "ml_src.cli.visualise:main"
+ml-fl-server = "ml_src.cli.fl_server:main"
+ml-fl-client = "ml_src.cli.fl_client:main"
+ml-fl-run = "ml_src.cli.fl_run:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
